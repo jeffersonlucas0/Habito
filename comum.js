@@ -91,3 +91,17 @@ function montarRodape() {
   wrap.appendChild(rodape);
 }
 montarRodape();
+
+// ===== Logo pequeno ao lado do título (Foco, Treino e Conquistas) =====
+// Na Hoje o logo já aparece grande, então lá não faz nada. O logo leva de volta à Hoje.
+function montarLogoPequeno() {
+  const titulo = document.querySelector(".wrap h1");
+  if (!titulo || titulo.classList.contains("logo") || titulo.querySelector(".mini-logo")) return;
+  const link = document.createElement("a");
+  link.href = "index.html";
+  link.className = "mini-logo";
+  link.innerHTML = '<img src="habito-logo.png" alt="Hábito a Hábito, voltar para Hoje" width="640" height="473">';
+  titulo.classList.add("titulo-com-logo");
+  titulo.prepend(link);
+}
+montarLogoPequeno();

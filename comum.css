@@ -25,6 +25,12 @@
 }
 .rodape strong { color: var(--fg); font-weight: 700; }
 
+/* Logo pequeno ao lado do título */
+.titulo-com-logo { display: inline-flex; align-items: center; gap: 12px; }
+.mini-logo { display: block; line-height: 0; border-radius: 10px; flex: 0 0 auto; }
+.mini-logo img { height: 44px; width: auto; display: block; }
+.mini-logo:focus-visible { outline: 2px solid var(--nav-ativo); outline-offset: 2px; }
+
 /* No celular, a navegação vira uma barra fixa embaixo, como num app */
 @media (max-width: 600px) {
   .nav-app {
