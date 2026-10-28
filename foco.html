@@ -1,0 +1,987 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Modo Foco</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="comum.css">
+<style>
+  /* Layout: coluna central. O timer fica dentro de uma "cena" (céu + fogueira) que muda com o ambiente.
+     A cor da página muda com o modo: foco (âmbar), pausa curta (verde), pausa longa (azul). */
+  :root {
+    --bg: #f7efe1; --surface: #fffaf2; --fg: #2a2116; --muted: #6f604c; --line: #e6d8c0;
+    --accent: #c07a06; --accent-fg: #ffffff; --accent-soft: #f3e2c1;
+    --nav-ativo: var(--accent); --nav-ativo-fg: var(--accent-fg);
+    --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+    --body: "Figtree", "Segoe UI", system-ui, sans-serif;
+    color-scheme: light;
+  }
+  :root[data-modo="curta"] { --bg: #e6f2eb; --surface: #f7fcf9; --fg: #14261c; --muted: #4f6a5b; --line: #c8e0d2; --accent: #2f8a5f; --accent-soft: #cfe9da; }
+  :root[data-modo="longa"] { --bg: #e5edf5; --surface: #f6f9fc; --fg: #15212e; --muted: #50637a; --line: #c9d7e6; --accent: #3a6ea5; --accent-soft: #cfdff0; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #1d1710; --surface: #282016; --fg: #f3e9da; --muted: #b5a387; --line: #3d3122; --accent: #f0b53a; --accent-fg: #241a08; --accent-soft: #42331a; color-scheme: dark; }
+    :root:not([data-theme="light"])[data-modo="curta"] { --bg: #0f1c15; --surface: #16271e; --fg: #e3f2e9; --muted: #92b3a1; --line: #24402f; --accent: #4cc48b; --accent-fg: #0b1f14; --accent-soft: #1d3a2a; }
+    :root:not([data-theme="light"])[data-modo="longa"] { --bg: #0f1722; --surface: #17212e; --fg: #e3ebf4; --muted: #93a7bf; --line: #263649; --accent: #6fa6e0; --accent-fg: #0b1726; --accent-soft: #1f3247; }
+  }
+  :root[data-theme="dark"] { --bg: #1d1710; --surface: #282016; --fg: #f3e9da; --muted: #b5a387; --line: #3d3122; --accent: #f0b53a; --accent-fg: #241a08; --accent-soft: #42331a; color-scheme: dark; }
+  :root[data-theme="dark"][data-modo="curta"] { --bg: #0f1c15; --surface: #16271e; --fg: #e3f2e9; --muted: #92b3a1; --line: #24402f; --accent: #4cc48b; --accent-fg: #0b1f14; --accent-soft: #1d3a2a; }
+  :root[data-theme="dark"][data-modo="longa"] { --bg: #0f1722; --surface: #17212e; --fg: #e3ebf4; --muted: #93a7bf; --line: #263649; --accent: #6fa6e0; --accent-fg: #0b1726; --accent-soft: #1f3247; }
+
+  * { box-sizing: border-box; }
+  :root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 16px; line-height: 1.5; transition: background-color .5s ease; }
+  [hidden] { display: none !important; }
+  .wrap {
+    max-width: 640px; margin: 0 auto; padding-block: 16px 64px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+    display: flex; flex-direction: column; gap: 20px;
+  }
+  h1, h2 { font-family: var(--display); margin: 0; text-wrap: balance; }
+  h1 { font-size: 28px; font-weight: 800; line-height: 1.1; }
+  h2 { font-size: 18px; font-weight: 600; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .rot { font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; }
+
+  .topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .topo nav { display: flex; gap: 6px; }
+  .btn-leve { background: transparent; border: 1.5px solid var(--line); border-radius: 8px; padding: 6px 12px; font-size: 14px; font-weight: 600; }
+  .btn-leve[aria-expanded="true"], .btn-leve[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); }
+
+  /* ===== Cena: céu + fogueira + timer ===== */
+  .cena {
+    position: relative; border-radius: 20px; overflow: hidden; min-height: 440px;
+    color: #fff; background: #120d1f; isolation: isolate;
+  }
+  .cena canvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; display: block; }
+  .cena-conteudo {
+    position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px;
+    padding: 16px 16px 190px; text-shadow: 0 2px 12px rgba(0,0,0,.45);
+  }
+  .modos { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; }
+  .modo { background: transparent; border: 0; border-radius: 8px; padding: 6px 12px; font-size: 15px; font-weight: 500; color: rgba(255,255,255,.75); }
+  .modo[aria-pressed="true"] { background: rgba(255,255,255,.18); color: #fff; font-weight: 600; }
+  .tempo { font-family: var(--display); font-weight: 800; font-size: clamp(76px, 20vw, 112px); line-height: 1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; margin-top: 6px; }
+  .controles { display: flex; align-items: center; gap: 12px; }
+  .iniciar {
+    min-width: 170px; padding: 13px 26px; border: 0; border-radius: 12px; background: var(--accent); color: var(--accent-fg);
+    font-family: var(--display); font-weight: 800; font-size: 19px; letter-spacing: .04em; text-transform: uppercase;
+    box-shadow: 0 4px 0 color-mix(in srgb, var(--accent) 55%, #000); transition: transform .08s, box-shadow .08s; text-shadow: none;
+  }
+  .iniciar.rodando { transform: translateY(4px); box-shadow: 0 0 0 transparent; }
+  .pular { background: transparent; border: 0; font-size: 14px; color: rgba(255,255,255,.8); padding: 8px; font-weight: 600; }
+  .pular:hover { color: #fff; }
+  .status-fogo { font-size: 14px; color: rgba(255,255,255,.88); text-align: center; max-width: 34ch; margin: 0; }
+  .status-fogo.apagou { color: #ffd0c2; font-weight: 600; }
+
+  /* Ambientes e som */
+  .ambientes { display: flex; flex-direction: column; gap: 10px; }
+  .linha { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .chip { font-size: 14px; padding: 6px 12px; border-radius: 99px; border: 1.5px solid var(--line); background: transparent; }
+  .chip[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  .volume { display: flex; align-items: center; gap: 8px; flex: 1 1 160px; min-width: 0; }
+  .volume input { flex: 1; min-width: 0; accent-color: var(--accent); }
+
+  .ciclo { text-align: center; display: flex; flex-direction: column; gap: 2px; }
+  .ciclo .num { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .ciclo .tarefa-atual { font-size: 18px; font-weight: 600; overflow-wrap: anywhere; }
+
+  /* Caderno de distrações */
+  .caderno { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+  .caderno form { display: flex; gap: 8px; }
+  .caderno ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+  .caderno li { display: flex; align-items: center; gap: 8px; font-size: 15px; }
+  .caderno li span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .caderno li.feita span { text-decoration: line-through; color: var(--muted); }
+  .mini { background: transparent; border: 0; color: var(--muted); font-size: 13px; padding: 2px 6px; }
+  .mini:hover { color: var(--fg); }
+
+  /* Acampamento da semana */
+  .acampamento { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+  .acampamento .cab { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .acampamento .cab span { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .semana-fogo { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; align-items: end; }
+  .dia-fogo { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+  .pilha { display: flex; flex-wrap: wrap-reverse; justify-content: center; gap: 1px; min-height: 64px; align-content: flex-start; max-width: 64px; }
+  .pilha svg { width: 18px; height: 18px; }
+  .dia-fogo .rotulo-dia { font-size: 12px; color: var(--muted); }
+  .dia-fogo.hoje .rotulo-dia { color: var(--fg); font-weight: 700; }
+  .dia-fogo .n { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  /* Painéis */
+  .painel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+  .grade { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .campo { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .campo label { font-size: 13px; font-weight: 600; color: var(--muted); }
+  input[type=number], input[type=text], select { width: 100%; min-width: 0; font: inherit; padding: 9px 10px; border-radius: 8px; border: 1.5px solid var(--line); background: var(--bg); color: var(--fg); }
+  .opcao { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 15px; }
+  .opcao input { width: 20px; height: 20px; accent-color: var(--accent); flex: 0 0 auto; }
+  .numeros { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .numeros div { display: flex; flex-direction: column; }
+  .numeros b { font-family: var(--display); font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .numeros span { font-size: 13px; color: var(--muted); }
+  .semana { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; align-items: end; height: 140px; }
+  .coluna { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; height: 100%; min-width: 0; }
+  .coluna .valor { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .coluna .barra { width: 100%; max-width: 32px; background: var(--accent); border-radius: 4px 4px 0 0; min-height: 2px; }
+  .coluna .barra.vazia { background: var(--line); }
+  .coluna .dia { font-size: 12px; color: var(--muted); }
+  .coluna.hoje .dia { color: var(--fg); font-weight: 600; }
+
+  /* Tarefas */
+  .cab-tarefas { display: flex; justify-content: space-between; align-items: center; gap: 12px; border-bottom: 2px solid var(--line); padding-bottom: 8px; }
+  .tarefas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .tarefa { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 10px; background: var(--surface); border: 1.5px solid var(--line); border-radius: 10px; padding: 10px 12px; cursor: pointer; }
+  .tarefa.ativa { border-color: var(--accent); background: var(--accent-soft); }
+  .tarefa.concluida .nome-t { text-decoration: line-through; color: var(--muted); }
+  .check { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line); background: transparent; display: grid; place-items: center; padding: 0; font-size: 14px; font-weight: 800; color: transparent; }
+  .tarefa.concluida .check { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+  .texto-t { min-width: 0; display: flex; flex-direction: column; }
+  .nome-t { font-weight: 600; overflow-wrap: anywhere; }
+  .tag { font-size: 12px; color: var(--muted); }
+  .contagem { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; font-weight: 600; }
+  .apagar { background: transparent; border: 0; color: var(--muted); font-size: 13px; padding: 4px; }
+  .apagar:hover, .apagar.confirmar { color: #c0392b; }
+  .vazio { color: var(--muted); font-size: 15px; text-align: center; padding: 12px; }
+  .nova { border: 2px dashed var(--line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+  .nova .linha { align-items: flex-end; }
+  .nova .linha > .campo { flex: 1 1 160px; }
+  .passo { display: flex; align-items: center; gap: 6px; }
+  .passo button { width: 36px; height: 38px; border-radius: 8px; border: 1.5px solid var(--line); background: var(--bg); font-size: 18px; font-weight: 600; }
+  .passo output { min-width: 24px; text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .btn-cheio { padding: 10px 18px; border: 0; border-radius: 10px; background: var(--fg); color: var(--bg); font-weight: 600; }
+  .resumo { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 20px; font-size: 15px; color: var(--muted); font-variant-numeric: tabular-nums; border-top: 2px solid var(--line); padding-top: 12px; }
+  .resumo b { color: var(--fg); }
+  .resumo:empty { display: none; }
+
+  @media (max-width: 520px) {
+    .grade { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .tarefa { grid-template-columns: auto minmax(0, 1fr) auto; }
+    .tarefa .apagar { grid-column: 2 / -1; justify-self: start; padding: 0; }
+    .cena { min-height: 420px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav id="nav-app"></nav>
+
+  <div class="topo">
+    <h1>Foco</h1>
+    <nav>
+      <button class="btn-leve" type="button" id="abrir-relatorio" aria-expanded="false" aria-controls="relatorio">Relatório</button>
+      <button class="btn-leve" type="button" id="abrir-ajustes" aria-expanded="false" aria-controls="ajustes">Ajustes</button>
+    </nav>
+  </div>
+
+  <section class="painel" id="relatorio" hidden aria-label="Relatório">
+    <h2>Seu foco</h2>
+    <div class="numeros">
+      <div><b id="r-hoje">0</b><span>minutos hoje</span></div>
+      <div><b id="r-semana">0</b><span>horas na semana</span></div>
+      <div><b id="r-seq">0</b><span>dias seguidos com foco</span></div>
+    </div>
+    <div class="semana" id="r-grafico"></div>
+  </section>
+
+  <section class="painel" id="ajustes" hidden aria-label="Ajustes">
+    <h2>Ajustes</h2>
+    <div class="grade">
+      <div class="campo"><label for="cfg-foco">Foco (min)</label><input type="number" id="cfg-foco" min="1" max="120"></div>
+      <div class="campo"><label for="cfg-curta">Pausa curta</label><input type="number" id="cfg-curta" min="1" max="60"></div>
+      <div class="campo"><label for="cfg-longa">Pausa longa</label><input type="number" id="cfg-longa" min="1" max="60"></div>
+    </div>
+    <div class="campo" style="max-width: 220px"><label for="cfg-intervalo">Pausa longa a cada (blocos)</label><input type="number" id="cfg-intervalo" min="2" max="10"></div>
+    <label class="opcao" for="cfg-auto-pausa">Começar pausas sozinho <input type="checkbox" id="cfg-auto-pausa"></label>
+    <label class="opcao" for="cfg-auto-foco">Começar o foco sozinho depois da pausa <input type="checkbox" id="cfg-auto-foco"></label>
+    <label class="opcao" for="cfg-som">Alarme ao terminar <input type="checkbox" id="cfg-som"></label>
+  </section>
+
+  <!-- Cena com a fogueira -->
+  <section class="cena" aria-label="Timer">
+    <canvas id="cena" aria-hidden="true"></canvas>
+    <div class="cena-conteudo">
+      <div class="modos" role="group" aria-label="Modo">
+        <button class="modo" type="button" data-modo="foco">Foco</button>
+        <button class="modo" type="button" data-modo="curta">Pausa curta</button>
+        <button class="modo" type="button" data-modo="longa">Pausa longa</button>
+      </div>
+      <div class="tempo" id="tempo">25:00</div>
+      <div class="controles">
+        <button class="iniciar" type="button" id="iniciar">Acender</button>
+        <button class="pular" type="button" id="pular" hidden>Pular →</button>
+      </div>
+      <p class="status-fogo" id="status-fogo" aria-live="polite">Acenda a fogueira. Se sair desta aba por mais de 10 segundos durante o foco, ela apaga.</p>
+    </div>
+  </section>
+
+  <section class="ambientes" aria-label="Ambiente">
+    <span class="rot">Ambiente</span>
+    <div class="linha" id="lista-ambientes"></div>
+    <div class="linha">
+      <button class="chip" type="button" id="som-ambiente" aria-pressed="false">Som ambiente</button>
+      <label class="volume" for="volume"><span class="rot">Volume</span><input type="range" id="volume" min="0" max="100"></label>
+    </div>
+  </section>
+
+  <div class="ciclo">
+    <span class="num" id="ciclo-num">#1</span>
+    <span class="tarefa-atual" id="ciclo-texto">Hora de focar</span>
+  </div>
+
+  <section class="caderno" aria-label="Caderno de distrações">
+    <span class="rot">Caderno de distrações</span>
+    <form id="form-distracao">
+      <label for="distracao" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Anotar distração</label>
+      <input type="text" id="distracao" maxlength="100" placeholder="Lembrou de algo? Anote aqui e volte ao foco." autocomplete="off">
+      <button class="btn-cheio" type="submit">Anotar</button>
+    </form>
+    <ul id="lista-distracoes"></ul>
+  </section>
+
+  <section class="acampamento" aria-label="Acampamento da semana">
+    <div class="cab"><h2>Acampamento da semana</h2><span id="camp-total"></span></div>
+    <div class="semana-fogo" id="camp-semana"></div>
+  </section>
+
+  <section aria-label="Tarefas">
+    <div class="cab-tarefas">
+      <h2>Tarefas de hoje</h2>
+      <button class="btn-leve" type="button" id="limpar-concluidas">Limpar concluídas</button>
+    </div>
+  </section>
+  <ul class="tarefas" id="tarefas"></ul>
+
+  <form class="nova" id="form-tarefa">
+    <div class="linha">
+      <div class="campo"><label for="t-nome">Em que você vai trabalhar?</label><input type="text" id="t-nome" maxlength="80" placeholder="Ex.: Exercícios de JavaScript" autocomplete="off"></div>
+    </div>
+    <div class="linha">
+      <div class="campo" style="flex: 0 0 auto">
+        <span class="campo-rot" id="t-est-rot" style="font-size:13px;font-weight:600;color:var(--muted)">Blocos estimados</span>
+        <div class="passo" role="group" aria-labelledby="t-est-rot">
+          <button type="button" id="t-menos" aria-label="Menos um bloco">−</button>
+          <output id="t-est">1</output>
+          <button type="button" id="t-mais" aria-label="Mais um bloco">+</button>
+        </div>
+      </div>
+      <div class="campo"><label for="t-habito">Ligar a um hábito</label><select id="t-habito"></select></div>
+      <button class="btn-cheio" type="submit">Adicionar</button>
+    </div>
+  </form>
+
+  <div class="resumo" id="resumo"></div>
+</div>
+
+<script src="comum.js"></script>
+<script src="chama.js"></script>
+<script>
+  montarNav("foco.html");
+
+  // ===== 1. Dados desta página =====
+  const PADRAO = {
+    cfg: { foco: 25, curta: 5, longa: 15, intervalo: 4, autoPausa: false, autoFoco: false, som: true },
+    tarefas: [
+      { id: 1, nome: "Exercícios de JavaScript (exemplo)", est: 3, feitos: 1, concluida: false, habitoId: null },
+      { id: 2, nome: "Revisar anotações (exemplo)", est: 1, feitos: 0, concluida: false, habitoId: null }
+    ],
+    ativa: 1,
+    ciclo: { dia: "", feitos: 0 },
+    log: {},              // minutos de foco por dia
+    fogueiras: {},        // { "2026-10-28": { acesas: 3, apagadas: 1 } }
+    distracoes: [],       // anotações do caderno
+    ambiente: "noite", somAmbiente: false, volume: 50,
+    emAndamento: null     // { fim } enquanto um bloco de foco está rodando
+  };
+  let foco = Object.assign(structuredClone(PADRAO), ler(CHAVES.foco) || {});
+  foco.cfg = Object.assign({}, PADRAO.cfg, foco.cfg);
+  if (foco.ciclo.dia !== hojeChave()) foco.ciclo = { dia: hojeChave(), feitos: 0 };
+  const salvar = () => gravar(CHAVES.foco, foco);
+  const lerHabitos = () => ler(CHAVES.habitos);
+
+  function fogueirasDe(dia) {
+    foco.fogueiras[dia] = foco.fogueiras[dia] || { acesas: 0, apagadas: 0 };
+    return foco.fogueiras[dia];
+  }
+
+  // Se a página foi fechada no meio de um bloco de foco, a fogueira apagou
+  let apagouAoVoltar = false;
+  if (foco.emAndamento) {
+    fogueirasDe(hojeChave()).apagadas++;
+    foco.emAndamento = null;
+    apagouAoVoltar = true;
+    salvar();
+  }
+
+  // ===== 2. Timer =====
+  const raiz = document.documentElement;
+  const elTempo = document.getElementById("tempo");
+  const elIniciar = document.getElementById("iniciar");
+  const elPular = document.getElementById("pular");
+  const elStatus = document.getElementById("status-fogo");
+  const t = { modo: "foco", total: 0, restante: 0, fim: null, intervalo: null, estadoFogo: "parada" };
+  // estadoFogo: "parada" (brasa), "acesa" (crescendo), "pausada", "apagada", "descanso"
+  let audioAlarme = null;
+
+  const duracao = (modo) => foco.cfg[modo] * 60;
+  const pararIntervalo = () => { clearInterval(t.intervalo); t.intervalo = null; };
+
+  function definirModo(modo) {
+    pararIntervalo();
+    t.modo = modo;
+    t.total = t.restante = duracao(modo);
+    raiz.dataset.modo = modo;
+    document.querySelectorAll(".modo").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.modo === modo)));
+    elIniciar.textContent = modo === "foco" ? "Acender" : "Descansar";
+    elIniciar.classList.remove("rodando");
+    elPular.hidden = true;
+    if (modo !== "foco") t.estadoFogo = "descanso";
+    else if (t.estadoFogo !== "apagada") t.estadoFogo = "parada";
+    mostrar(); mostrarCiclo();
+  }
+
+  function iniciarOuPausar() {
+    try { if (!audioAlarme) audioAlarme = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
+    som.garantir();
+    if (t.intervalo) {
+      pararIntervalo();
+      elIniciar.textContent = "Continuar"; elIniciar.classList.remove("rodando");
+      if (t.modo === "foco") {
+        t.estadoFogo = "pausada";
+        foco.emAndamento = null; salvar();
+        status("Pausado. A fogueira espera, mas não cresce.");
+      }
+      som.atualizar();
+      return;
+    }
+    t.fim = Date.now() + t.restante * 1000;
+    t.intervalo = setInterval(tique, 250);
+    elIniciar.textContent = "Pausar"; elIniciar.classList.add("rodando");
+    elPular.hidden = false;
+    if (t.modo === "foco") {
+      t.estadoFogo = "acesa";
+      foco.emAndamento = { fim: t.fim }; salvar();
+      status("A fogueira está crescendo. Fique nesta aba até o fim do bloco.");
+    } else {
+      status("Descanse perto do fogo. Levante, beba água, olhe para longe.");
+    }
+    som.atualizar();
+  }
+
+  function tique() {
+    t.restante = Math.max(0, Math.ceil((t.fim - Date.now()) / 1000));
+    mostrar();
+    if (t.restante === 0) terminar(true);
+  }
+
+  function mostrar() {
+    const m = Math.floor(t.restante / 60), s = t.restante % 60;
+    const texto = String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+    elTempo.textContent = texto;
+    document.title = (t.intervalo ? texto + " · " : "") + (t.modo === "foco" ? "Modo Foco" : "Pausa");
+  }
+
+  function status(texto, apagou) {
+    elStatus.textContent = texto;
+    elStatus.classList.toggle("apagou", !!apagou);
+  }
+
+  // completo = o tempo acabou; false = a pessoa pulou
+  function terminar(completo) {
+    pararIntervalo();
+    if (t.modo === "foco") {
+      registrarMinutos(Math.round((t.total - t.restante) / 60));
+      foco.emAndamento = null;
+      if (completo) {
+        tocarAlarme();
+        foco.ciclo.feitos++;
+        fogueirasDe(hojeChave()).acesas++;
+        const ativa = foco.tarefas.find(x => x.id === foco.ativa && !x.concluida);
+        if (ativa) ativa.feitos++;
+        contarBlocoNosHabitos();
+        avisar("Fogueira completa! Ela foi para o seu acampamento.");
+      }
+      salvar();
+      const proximo = foco.ciclo.feitos > 0 && foco.ciclo.feitos % foco.cfg.intervalo === 0 ? "longa" : "curta";
+      definirModo(proximo);
+      status(completo ? "Bloco concluído. Hora de descansar perto do fogo." : "Bloco pulado. Sem fogueira para o acampamento desta vez.");
+      if (completo && foco.cfg.autoPausa) iniciarOuPausar();
+    } else {
+      if (completo) { tocarAlarme(); avisar("Pausa acabou. Vamos acender outra?"); }
+      definirModo("foco");
+      status("Pronto para acender outra fogueira?");
+      if (completo && foco.cfg.autoFoco) iniciarOuPausar();
+    }
+    som.atualizar();
+    desenharTarefas(); desenharRelatorio(); desenharAcampamento();
+  }
+
+  // Sair da aba durante o foco: mais de 10 segundos fora e a fogueira apaga
+  let saiuEm = null;
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      if (t.intervalo && t.modo === "foco") saiuEm = Date.now();
+      return;
+    }
+    if (saiuEm && t.intervalo && t.modo === "foco") {
+      const fora = (Date.now() - saiuEm) / 1000;
+      if (fora > 10) apagarFogueira(Math.round(fora));
+    }
+    saiuEm = null;
+  });
+
+  function apagarFogueira(segundosFora) {
+    pararIntervalo();
+    registrarMinutos(Math.round((t.total - Math.max(0, Math.ceil((t.fim - Date.now()) / 1000))) / 60));
+    fogueirasDe(hojeChave()).apagadas++;
+    foco.emAndamento = null; salvar();
+    t.estadoFogo = "apagada";
+    t.restante = t.total = duracao("foco");
+    elIniciar.textContent = "Acender de novo"; elIniciar.classList.remove("rodando");
+    elPular.hidden = true;
+    mostrar();
+    status("A fogueira apagou: você ficou " + segundosFora + " segundos fora da aba. Tudo bem, acenda de novo.", true);
+    som.atualizar();
+    desenharAcampamento(); desenharRelatorio();
+  }
+
+  function registrarMinutos(min) {
+    if (min > 0) foco.log[hojeChave()] = (foco.log[hojeChave()] || 0) + min;
+  }
+
+  function contarBlocoNosHabitos() {
+    const h = lerHabitos();
+    if (!h) return;
+    h.focos = h.focos || {};
+    h.focos[hojeChave()] = (h.focos[hojeChave()] || 0) + 1;
+    gravar(CHAVES.habitos, h);
+  }
+
+  function tocarAlarme() {
+    if (!foco.cfg.som || !audioAlarme) return;
+    try {
+      [0, .3, .6].forEach((atraso, i) => {
+        const osc = audioAlarme.createOscillator(), vol = audioAlarme.createGain();
+        osc.frequency.value = i === 2 ? 1046 : 784;
+        vol.gain.setValueAtTime(.0001, audioAlarme.currentTime + atraso);
+        vol.gain.exponentialRampToValueAtTime(.2, audioAlarme.currentTime + atraso + .02);
+        vol.gain.exponentialRampToValueAtTime(.0001, audioAlarme.currentTime + atraso + .25);
+        osc.connect(vol); vol.connect(audioAlarme.destination);
+        osc.start(audioAlarme.currentTime + atraso); osc.stop(audioAlarme.currentTime + atraso + .3);
+      });
+    } catch (e) {}
+  }
+
+  function mostrarCiclo() {
+    const ativa = foco.tarefas.find(x => x.id === foco.ativa && !x.concluida);
+    document.getElementById("ciclo-num").textContent = t.modo === "foco"
+      ? "#" + (foco.ciclo.feitos + 1) + " · bloco de hoje" : foco.ciclo.feitos + " blocos feitos hoje";
+    document.getElementById("ciclo-texto").textContent = t.modo !== "foco" ? "Hora de uma pausa" : ativa ? ativa.nome : "Hora de focar";
+  }
+
+  // ===== 3. A cena (céu do ambiente + fogueira) =====
+  const AMBIENTES = {
+    noite:    { nome: "Noite estrelada", ceu: ["#0b1030", "#1c1a4a", "#2b2050"] },
+    chuva:    { nome: "Chuva",           ceu: ["#1b2430", "#2a3644", "#33404d"] },
+    floresta: { nome: "Floresta",        ceu: ["#0a1f1a", "#12332a", "#1b4234"] },
+    entardecer: { nome: "Entardecer",    ceu: ["#2a1d4a", "#9a4a6a", "#f08a5a"] }
+  };
+  const cenaCanvas = document.getElementById("cena");
+  let cenaCtx = null, W = 0, H = 0;
+  function ajustarCena() {
+    const r = cenaCanvas.getBoundingClientRect();
+    W = r.width; H = r.height;
+    cenaCtx = cenaCanvas.getContext("2d");
+    const dpr = Math.min(window.devicePixelRatio || 1, 3);
+    cenaCanvas.width = W * dpr; cenaCanvas.height = H * dpr;
+    cenaCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  new ResizeObserver(ajustarCena).observe(cenaCanvas);
+
+  function desenharCena(agora) {
+    if (!cenaCtx || !W) return;
+    const ctx = cenaCtx, s = agora / 1000;
+    const amb = AMBIENTES[foco.ambiente] || AMBIENTES.noite;
+
+    // Céu
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, amb.ceu[0]); g.addColorStop(.6, amb.ceu[1]); g.addColorStop(1, amb.ceu[2]);
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+    if (foco.ambiente === "noite") {
+      for (let i = 0; i < 70; i++) {
+        ctx.globalAlpha = .3 + .7 * (Math.sin(s * 1.5 + i * 2.1) + 1) / 2;
+        ctx.fillStyle = "#fff";
+        ctx.beginPath(); ctx.arc(pseudo(i) * W, pseudo(i + 300) * H * .7, .6 + pseudo(i + 9) * 1.2, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      // Lua no canto de baixo, longe do relógio e do texto
+      const lx = W - 46, ly = H * .72;
+      ctx.fillStyle = "#f4f1dc";
+      ctx.beginPath(); ctx.arc(lx, ly, 16, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = amb.ceu[1];
+      ctx.beginPath(); ctx.arc(lx + 7, ly - 5, 14, 0, Math.PI * 2); ctx.fill();
+    }
+    if (foco.ambiente === "entardecer") {
+      const sol = ctx.createRadialGradient(W * .25, H * .78, 0, W * .25, H * .78, 70);
+      sol.addColorStop(0, "#ffe2a0"); sol.addColorStop(1, "#ffb07000");
+      ctx.fillStyle = sol; ctx.beginPath(); ctx.arc(W * .25, H * .78, 70, 0, Math.PI * 2); ctx.fill();
+    }
+    if (foco.ambiente === "floresta") {
+      for (let camada = 0; camada < 2; camada++) {
+        ctx.fillStyle = camada ? "#06140f" : "#0d281f";
+        for (let i = 0; i < 9; i++) {
+          const x = (i / 8) * W + (camada ? 30 : 0), alt = H * (.28 + pseudo(i + camada * 20) * .18);
+          ctx.beginPath(); ctx.moveTo(x - 30, H * .86); ctx.lineTo(x, H * .86 - alt); ctx.lineTo(x + 30, H * .86); ctx.fill();
+        }
+      }
+    }
+
+    // Chão
+    ctx.fillStyle = foco.ambiente === "floresta" ? "#04100b" : "rgba(5, 4, 12, .85)";
+    ctx.beginPath(); ctx.ellipse(W / 2, H + 40, W * .8, 110, 0, 0, Math.PI * 2); ctx.fill();
+
+    // Vaga-lumes da floresta
+    if (foco.ambiente === "floresta") {
+      for (let i = 0; i < 16; i++) {
+        const x = pseudo(i) * W + Math.sin(s * .6 + i) * 20, y = H * (.3 + pseudo(i + 40) * .45) + Math.cos(s * .8 + i) * 12;
+        ctx.globalAlpha = Math.max(0, Math.sin(s * 1.3 + i * 1.7));
+        ctx.fillStyle = "#d9ff7a";
+        ctx.beginPath(); ctx.arc(x, y, 2.2, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    desenharFogueira(ctx, W / 2, H - 36, s);
+
+    // Chuva por cima de tudo
+    if (foco.ambiente === "chuva") {
+      ctx.strokeStyle = "rgba(190, 215, 240, .45)"; ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      for (let i = 0; i < 140; i++) {
+        const vel = 520 * (.7 + pseudo(i) * .6);
+        const x = (pseudo(i + 11) * (W + 60) + s * 60) % (W + 60) - 30;
+        const y = (pseudo(i + 77) * H + s * vel) % (H + 20) - 20;
+        ctx.moveTo(x, y); ctx.lineTo(x - 4, y + 14);
+      }
+      ctx.stroke();
+    }
+
+    // Leve escurecido no topo para o texto ficar legível
+    const sombra = ctx.createLinearGradient(0, 0, 0, H * .55);
+    sombra.addColorStop(0, "rgba(0,0,0,.28)"); sombra.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = sombra; ctx.fillRect(0, 0, W, H * .55);
+  }
+
+  function desenharFogueira(ctx, cx, base, s) {
+    // Lenha cruzada
+    ctx.save();
+    ctx.fillStyle = "#5a3418";
+    [-.32, .32].forEach(ang => {
+      ctx.save(); ctx.translate(cx, base); ctx.rotate(ang);
+      ctx.beginPath(); ctx.roundRect(-48, -7, 96, 14, 7); ctx.fill();
+      ctx.fillStyle = "#8a5a32"; ctx.beginPath(); ctx.arc(ang < 0 ? 45 : -45, 0, 6, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#5a3418";
+      ctx.restore();
+    });
+
+    const estado = t.estadoFogo;
+    if (estado === "apagada") {
+      ctx.strokeStyle = "rgba(200, 200, 210, .55)"; ctx.lineWidth = 3; ctx.lineCap = "round";
+      for (let i = 0; i < 3; i++) {
+        const sobe = (s * .35 + i / 3) % 1, x = cx + (i - 1) * 10;
+        ctx.globalAlpha = (1 - sobe) * .8;
+        ctx.beginPath(); ctx.moveTo(x, base - 10);
+        ctx.bezierCurveTo(x + 14, base - 40, x - 14, base - 70, x + 4, base - 100 - sobe * 40); ctx.stroke();
+      }
+      ctx.restore(); return;
+    }
+
+    // Tamanho da chama conforme o estado
+    let p;
+    if (estado === "acesa" || estado === "pausada") p = 1 - t.restante / t.total;
+    else if (estado === "descanso") p = .55;
+    else p = 0;
+    const h = H * (.07 + .27 * p), w = h * .78;
+    const f = (estado === "pausada" ? .3 : 1) * (Math.sin(s * 6.1) * .05 + Math.sin(s * 9.7) * .03) * w;
+
+    // Luz no chão e no ar
+    const luz = ctx.createRadialGradient(cx, base - h * .3, 0, cx, base - h * .3, 60 + h * 1.4);
+    luz.addColorStop(0, "rgba(255, 170, 60, " + (.25 + p * .3) + ")"); luz.addColorStop(1, "rgba(255, 140, 40, 0)");
+    ctx.fillStyle = luz; ctx.beginPath(); ctx.arc(cx, base - h * .3, 60 + h * 1.4, 0, Math.PI * 2); ctx.fill();
+
+    if (p > .35) {
+      pintarChama(ctx, cx - w * .4, base, w * .5, h * .6, -f * .8, ["#ff8a1f", "#d92b1a"]);
+      pintarChama(ctx, cx + w * .4, base, w * .5, h * .62, f * .8, ["#ff8a1f", "#d92b1a"]);
+    }
+    pintarChama(ctx, cx, base, w, h, f, ["#ffab2e", "#e8461a"]);
+    pintarChama(ctx, cx, base, w * .62, h * .66, f * .7, ["#fff0a8", "#ffb42e"]);
+    pintarChama(ctx, cx, base, w * .3, h * .32, f * .4, ["#ffffff", "#fff0a8"]);
+
+    // Faíscas
+    const qtd = Math.round(3 + p * 16);
+    ctx.fillStyle = "#ffcf6b";
+    for (let i = 0; i < qtd; i++) {
+      const fase = (s * (.4 + (i % 5) * .07) + i * .37) % 1;
+      ctx.globalAlpha = 1 - fase;
+      ctx.beginPath();
+      ctx.arc(cx + Math.sin(i * 12.99) * w * .5 + Math.sin(s * 2 + i) * 6, base - h * .4 - fase * (60 + h), 1.8 * (1 - fase * .5), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  const reduzMovimento = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function animar(agora) {
+    if (!document.hidden) desenharCena(reduzMovimento ? 1000 : agora);
+    requestAnimationFrame(animar);
+  }
+  requestAnimationFrame(animar);
+
+  // ===== 4. Som ambiente (gerado pelo navegador, sem baixar áudio) =====
+  const som = {
+    ctx: null, mestre: null, nos: [], timers: [], tocando: null, fogo: null,
+    garantir() {
+      if (this.ctx) return;
+      try {
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        this.mestre = this.ctx.createGain(); this.mestre.connect(this.ctx.destination);
+        this.mestre.gain.value = foco.volume / 100;
+      } catch (e) { this.ctx = null; }
+    },
+    ruido(tipo) {
+      // Cria 2 segundos de ruído (branco, rosa ou marrom) que tocam em loop
+      const ctx = this.ctx, n = ctx.sampleRate * 2, buf = ctx.createBuffer(1, n, ctx.sampleRate), d = buf.getChannelData(0);
+      let ultimo = 0, b = [0, 0, 0];
+      for (let i = 0; i < n; i++) {
+        const branco = Math.random() * 2 - 1;
+        if (tipo === "marrom") { ultimo = (ultimo + .02 * branco) / 1.02; d[i] = ultimo * 3.5; }
+        else if (tipo === "rosa") { b[0] = .99765 * b[0] + branco * .099; b[1] = .963 * b[1] + branco * .2965; b[2] = .57 * b[2] + branco * 1.0526; d[i] = (b[0] + b[1] + b[2] + branco * .1848) * .2; }
+        else d[i] = branco;
+      }
+      const fonte = ctx.createBufferSource(); fonte.buffer = buf; fonte.loop = true;
+      return fonte;
+    },
+    parar() {
+      this.nos.forEach(n => { try { n.stop ? n.stop() : null; n.disconnect(); } catch (e) {} });
+      this.timers.forEach(clearInterval);
+      this.nos = []; this.timers = []; this.tocando = null;
+    },
+    tocarAmbiente(nome) {
+      const ctx = this.ctx;
+      this.parar();
+      this.tocando = nome;
+      const ligar = (fonte, ...cadeia) => { let atual = fonte; cadeia.forEach(n => { atual.connect(n); atual = n; this.nos.push(n); }); atual.connect(this.mestre); this.nos.push(fonte); fonte.start && fonte.start(); };
+      if (nome === "chuva") {
+        const f = ctx.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 1400; f.Q.value = .5;
+        const g = ctx.createGain(); g.gain.value = .35;
+        ligar(this.ruido("branco"), f, g);
+        const f2 = ctx.createBiquadFilter(); f2.type = "lowpass"; f2.frequency.value = 500;
+        const g2 = ctx.createGain(); g2.gain.value = .5;
+        ligar(this.ruido("marrom"), f2, g2);
+      }
+      if (nome === "noite") {
+        const g = ctx.createGain(); g.gain.value = .3;
+        ligar(this.ruido("marrom"), g);
+        // Grilos: pulsos curtos e agudos
+        this.timers.push(setInterval(() => {
+          if (!this.ctx) return;
+          const agora = ctx.currentTime, osc = ctx.createOscillator(), gg = ctx.createGain();
+          osc.frequency.value = 4300 + Math.random() * 300; gg.gain.value = 0;
+          for (let k = 0; k < 3; k++) { gg.gain.setValueAtTime(.025, agora + k * .07); gg.gain.setValueAtTime(0, agora + k * .07 + .035); }
+          osc.connect(gg); gg.connect(this.mestre); osc.start(agora); osc.stop(agora + .25);
+        }, 900));
+      }
+      if (nome === "floresta") {
+        const f = ctx.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 900;
+        const g = ctx.createGain(); g.gain.value = .35;
+        ligar(this.ruido("rosa"), f, g);
+        // Passarinhos de vez em quando
+        this.timers.push(setInterval(() => {
+          if (!this.ctx || Math.random() < .5) return;
+          const agora = ctx.currentTime;
+          for (let k = 0; k < 2; k++) {
+            const osc = ctx.createOscillator(), gg = ctx.createGain(), ini = agora + k * .16;
+            osc.frequency.setValueAtTime(2600, ini); osc.frequency.exponentialRampToValueAtTime(4200, ini + .1);
+            gg.gain.setValueAtTime(.0001, ini); gg.gain.exponentialRampToValueAtTime(.04, ini + .02); gg.gain.exponentialRampToValueAtTime(.0001, ini + .12);
+            osc.connect(gg); gg.connect(this.mestre); osc.start(ini); osc.stop(ini + .14);
+          }
+        }, 2200));
+      }
+      if (nome === "entardecer") {
+        // Ondas: ruído marrom com volume subindo e descendo devagar
+        const g = ctx.createGain(); g.gain.value = .3;
+        const lfo = ctx.createOscillator(), prof = ctx.createGain();
+        lfo.frequency.value = .11; prof.gain.value = .22;
+        lfo.connect(prof); prof.connect(g.gain); lfo.start(); this.nos.push(lfo, prof);
+        ligar(this.ruido("marrom"), g);
+      }
+    },
+    // Estalos da fogueira, enquanto ela está acesa
+    estalos(ligado) {
+      if (ligado && !this.fogo && this.ctx) {
+        this.fogo = setInterval(() => {
+          if (Math.random() < .55) return;
+          const ctx = this.ctx, agora = ctx.currentTime, fonte = ctx.createBufferSource();
+          const n = Math.floor(ctx.sampleRate * .02), buf = ctx.createBuffer(1, n, ctx.sampleRate), d = buf.getChannelData(0);
+          for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 3);
+          fonte.buffer = buf;
+          const f = ctx.createBiquadFilter(); f.type = "highpass"; f.frequency.value = 1500;
+          const g = ctx.createGain(); g.gain.value = .15 + Math.random() * .3;
+          fonte.connect(f); f.connect(g); g.connect(this.mestre); fonte.start(agora);
+        }, 120);
+      }
+      if (!ligado && this.fogo) { clearInterval(this.fogo); this.fogo = null; }
+    },
+    atualizar() {
+      if (!this.ctx) return;
+      if (foco.somAmbiente) { if (this.tocando !== foco.ambiente) this.tocarAmbiente(foco.ambiente); }
+      else this.parar();
+      this.estalos(foco.somAmbiente && !!t.intervalo && t.modo === "foco");
+    }
+  };
+
+  function desenharAmbientes() {
+    const lista = document.getElementById("lista-ambientes");
+    lista.innerHTML = "";
+    for (const [chave, amb] of Object.entries(AMBIENTES)) {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "chip"; b.textContent = amb.nome;
+      b.setAttribute("aria-pressed", String(foco.ambiente === chave));
+      b.addEventListener("click", () => { foco.ambiente = chave; salvar(); desenharAmbientes(); som.atualizar(); });
+      lista.appendChild(b);
+    }
+    const botaoSom = document.getElementById("som-ambiente");
+    botaoSom.setAttribute("aria-pressed", String(foco.somAmbiente));
+    botaoSom.textContent = foco.somAmbiente ? "Som ambiente: ligado" : "Som ambiente: desligado";
+  }
+  document.getElementById("som-ambiente").addEventListener("click", () => {
+    foco.somAmbiente = !foco.somAmbiente; salvar();
+    som.garantir(); if (som.ctx && som.ctx.state === "suspended") som.ctx.resume();
+    desenharAmbientes(); som.atualizar();
+  });
+  const elVolume = document.getElementById("volume");
+  elVolume.value = foco.volume;
+  elVolume.addEventListener("input", () => {
+    foco.volume = Number(elVolume.value); salvar();
+    if (som.mestre) som.mestre.gain.value = foco.volume / 100;
+  });
+
+  // ===== 5. Caderno de distrações =====
+  function desenharDistracoes() {
+    const ul = document.getElementById("lista-distracoes");
+    ul.innerHTML = "";
+    for (const d of foco.distracoes.filter(x => x.dia === hojeChave())) {
+      const li = document.createElement("li");
+      li.className = d.feita ? "feita" : "";
+      const texto = document.createElement("span"); texto.textContent = d.texto;
+      const ok = document.createElement("button"); ok.type = "button"; ok.className = "mini"; ok.textContent = d.feita ? "Desfazer" : "Resolvido";
+      ok.addEventListener("click", () => { d.feita = !d.feita; salvar(); desenharDistracoes(); });
+      const del = document.createElement("button"); del.type = "button"; del.className = "mini"; del.textContent = "Apagar";
+      del.addEventListener("click", () => { foco.distracoes = foco.distracoes.filter(x => x !== d); salvar(); desenharDistracoes(); });
+      li.append(texto, ok, del); ul.appendChild(li);
+    }
+  }
+  document.getElementById("form-distracao").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const campo = document.getElementById("distracao");
+    const texto = campo.value.trim();
+    if (!texto) return;
+    foco.distracoes.push({ id: Date.now(), texto, dia: hojeChave(), feita: false });
+    // Guarda só as anotações dos últimos 14 dias
+    const limite = chaveDoDia(diasAtras(14));
+    foco.distracoes = foco.distracoes.filter(x => x.dia >= limite);
+    campo.value = ""; salvar(); desenharDistracoes();
+    avisar("Anotado. Agora, de volta ao foco.");
+  });
+
+  // ===== 6. Acampamento da semana =====
+  const iconeFogo = (cor) => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22c-4.4 0-7-2.8-7-6.4 0-3.2 2.2-5.3 3.7-7 .3 1.7 1.1 2.8 2.2 3.3-.2-3.2 1.4-6.6 3.9-9 .3 3.4 1.5 5.3 3 7 1.2 1.4 1.8 3.2 1.8 5.4 0 4-2.9 6.7-7.6 6.7z" fill="' + cor + '"/></svg>';
+  const iconeFumaca = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 20c3-2-1-5 2-8s0-6 2-8M14 20c2-2-1-4 1-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".5"/></svg>';
+
+  function desenharAcampamento() {
+    const cont = document.getElementById("camp-semana");
+    cont.innerHTML = "";
+    let acesas = 0, apagadas = 0;
+    for (let n = 6; n >= 0; n--) {
+      const data = diasAtras(n), f = foco.fogueiras[chaveDoDia(data)] || { acesas: 0, apagadas: 0 };
+      acesas += f.acesas; apagadas += f.apagadas;
+      const col = document.createElement("div");
+      col.className = "dia-fogo" + (n === 0 ? " hoje" : "");
+      const pilha = document.createElement("div"); pilha.className = "pilha";
+      const mostrar = Math.min(f.acesas, 9);
+      pilha.innerHTML = iconeFogo("#f08a1c").repeat(mostrar) + (f.apagadas ? iconeFumaca.repeat(Math.min(f.apagadas, 3)) : "");
+      col.setAttribute("aria-label", NOMES_DIAS[data.getDay()] + ": " + f.acesas + " fogueiras acesas, " + f.apagadas + " apagadas");
+      const num = document.createElement("span"); num.className = "n"; num.textContent = f.acesas + (f.acesas > 9 ? "+" : "");
+      const rot = document.createElement("span"); rot.className = "rotulo-dia"; rot.textContent = NOMES_DIAS[data.getDay()];
+      col.append(pilha, num, rot);
+      cont.appendChild(col);
+    }
+    document.getElementById("camp-total").textContent = acesas + (acesas === 1 ? " fogueira acesa" : " fogueiras acesas") + (apagadas ? " · " + apagadas + " apagada" + (apagadas > 1 ? "s" : "") : "");
+  }
+
+  // ===== 7. Tarefas =====
+  const lista = document.getElementById("tarefas");
+  function desenharTarefas() {
+    lista.innerHTML = "";
+    const habitos = (lerHabitos() || { habitos: [] }).habitos;
+    if (foco.tarefas.length === 0) lista.innerHTML = '<li class="vazio">Sem tarefas. Adicione uma abaixo e estime quantos blocos ela leva.</li>';
+    for (const tarefa of foco.tarefas) {
+      const li = document.createElement("li");
+      li.className = "tarefa" + (tarefa.id === foco.ativa ? " ativa" : "") + (tarefa.concluida ? " concluida" : "");
+      li.addEventListener("click", () => { foco.ativa = tarefa.id; salvar(); desenharTarefas(); mostrarCiclo(); });
+      const check = document.createElement("button");
+      check.type = "button"; check.className = "check"; check.textContent = "✓";
+      check.setAttribute("aria-label", (tarefa.concluida ? "Desmarcar " : "Concluir ") + tarefa.nome);
+      check.addEventListener("click", (e) => { e.stopPropagation(); alternarConcluida(tarefa); });
+      const texto = document.createElement("div"); texto.className = "texto-t";
+      const nome = document.createElement("span"); nome.className = "nome-t"; nome.textContent = tarefa.nome;
+      texto.appendChild(nome);
+      const habito = habitos.find(h => h.id === tarefa.habitoId);
+      if (habito) { const tag = document.createElement("span"); tag.className = "tag"; tag.textContent = "Hábito: " + habito.nome; texto.appendChild(tag); }
+      const contagem = document.createElement("span"); contagem.className = "contagem"; contagem.textContent = tarefa.feitos + "/" + tarefa.est;
+      const apagar = document.createElement("button"); apagar.type = "button"; apagar.className = "apagar"; apagar.textContent = "Apagar";
+      apagar.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (!apagar.classList.contains("confirmar")) {
+          apagar.classList.add("confirmar"); apagar.textContent = "Confirmar";
+          setTimeout(() => { apagar.classList.remove("confirmar"); apagar.textContent = "Apagar"; }, 3000);
+          return;
+        }
+        foco.tarefas = foco.tarefas.filter(x => x.id !== tarefa.id); salvar(); desenharTarefas(); mostrarCiclo();
+      });
+      li.append(check, texto, contagem, apagar); lista.appendChild(li);
+    }
+    desenharResumo();
+  }
+
+  function alternarConcluida(tarefa) {
+    tarefa.concluida = !tarefa.concluida;
+    if (tarefa.concluida && tarefa.habitoId) {
+      const dados = lerHabitos();
+      const h = dados && dados.habitos.find(x => x.id === tarefa.habitoId);
+      if (h && !h.feitos[hojeChave()]) { h.feitos[hojeChave()] = "feito"; gravar(CHAVES.habitos, dados); avisar("“" + h.nome + "” marcado como feito hoje."); }
+    }
+    if (tarefa.concluida && foco.ativa === tarefa.id) { const p = foco.tarefas.find(x => !x.concluida); foco.ativa = p ? p.id : null; }
+    salvar(); desenharTarefas(); mostrarCiclo();
+  }
+
+  function desenharResumo() {
+    const pendentes = foco.tarefas.filter(x => !x.concluida);
+    const totalEst = foco.tarefas.reduce((s, x) => s + x.est, 0);
+    const totalFeitos = foco.tarefas.reduce((s, x) => s + Math.min(x.feitos, x.est), 0);
+    const restantes = pendentes.reduce((s, x) => s + Math.max(0, x.est - x.feitos), 0);
+    const el = document.getElementById("resumo");
+    if (restantes === 0) { el.innerHTML = foco.tarefas.length ? "<span><b>Tudo estimado foi feito.</b> Bom trabalho.</span>" : ""; return; }
+    let minutos = 0;
+    for (let i = 0; i < restantes; i++) {
+      minutos += foco.cfg.foco;
+      if (i < restantes - 1) minutos += ((foco.ciclo.feitos + i + 1) % foco.cfg.intervalo === 0 ? foco.cfg.longa : foco.cfg.curta);
+    }
+    const fim = new Date(Date.now() + minutos * 60000);
+    el.innerHTML = "<span>Blocos: <b>" + totalFeitos + "/" + totalEst + "</b></span><span>Termina às <b>" +
+      fim.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) + "</b> (" + (minutos / 60).toFixed(1).replace(".", ",") + " h)</span>";
+  }
+
+  let estimativa = 1;
+  const elEst = document.getElementById("t-est");
+  document.getElementById("t-menos").addEventListener("click", () => { estimativa = Math.max(1, estimativa - 1); elEst.textContent = estimativa; });
+  document.getElementById("t-mais").addEventListener("click", () => { estimativa = Math.min(20, estimativa + 1); elEst.textContent = estimativa; });
+  function preencherHabitos() {
+    const sel = document.getElementById("t-habito");
+    sel.innerHTML = '<option value="">Nenhum</option>';
+    for (const h of (lerHabitos() || { habitos: [] }).habitos) { const op = document.createElement("option"); op.value = h.id; op.textContent = h.nome; sel.appendChild(op); }
+  }
+  document.getElementById("form-tarefa").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const campo = document.getElementById("t-nome"), nome = campo.value.trim();
+    if (!nome) { campo.focus(); return; }
+    const hv = document.getElementById("t-habito").value;
+    const nova = { id: Date.now(), nome, est: estimativa, feitos: 0, concluida: false, habitoId: hv ? Number(hv) : null };
+    foco.tarefas.push(nova);
+    if (!foco.tarefas.some(x => x.id === foco.ativa && !x.concluida)) foco.ativa = nova.id;
+    campo.value = ""; estimativa = 1; elEst.textContent = 1; document.getElementById("t-habito").value = "";
+    salvar(); desenharTarefas(); mostrarCiclo();
+  });
+  document.getElementById("limpar-concluidas").addEventListener("click", () => { foco.tarefas = foco.tarefas.filter(x => !x.concluida); salvar(); desenharTarefas(); });
+
+  // ===== 8. Relatório =====
+  function desenharRelatorio() {
+    const min = (n) => foco.log[chaveDoDia(diasAtras(n))] || 0;
+    document.getElementById("r-hoje").textContent = min(0);
+    let semana = 0; for (let i = 0; i < 7; i++) semana += min(i);
+    document.getElementById("r-semana").textContent = (semana / 60).toFixed(1).replace(".", ",");
+    let seq = 0, i = min(0) ? 0 : 1; while (min(i) > 0) { seq++; i++; }
+    document.getElementById("r-seq").textContent = seq;
+    const grafico = document.getElementById("r-grafico");
+    grafico.innerHTML = "";
+    const maior = Math.max(30, ...[0, 1, 2, 3, 4, 5, 6].map(min));
+    for (let n = 6; n >= 0; n--) {
+      const v = min(n), col = document.createElement("div");
+      col.className = "coluna" + (n === 0 ? " hoje" : "");
+      col.innerHTML = '<span class="valor">' + (v ? v + "m" : "") + '</span><div class="barra' + (v ? "" : " vazia") + '" style="height:' + (v ? Math.max(4, v / maior * 100) : 2) + '%"></div><span class="dia">' + NOMES_DIAS[diasAtras(n).getDay()] + "</span>";
+      grafico.appendChild(col);
+    }
+  }
+
+  // ===== 9. Ajustes =====
+  const campos = { foco: "cfg-foco", curta: "cfg-curta", longa: "cfg-longa", intervalo: "cfg-intervalo" };
+  for (const [k, id] of Object.entries(campos)) {
+    const el = document.getElementById(id);
+    el.value = foco.cfg[k];
+    el.addEventListener("change", () => {
+      const v = Math.round(Number(el.value));
+      if (!v || v < Number(el.min) || v > Number(el.max)) { el.value = foco.cfg[k]; return; }
+      foco.cfg[k] = v; salvar();
+      if (!t.intervalo && t.restante === t.total) definirModo(t.modo);
+      desenharResumo();
+    });
+  }
+  for (const [k, id] of Object.entries({ autoPausa: "cfg-auto-pausa", autoFoco: "cfg-auto-foco", som: "cfg-som" })) {
+    const el = document.getElementById(id);
+    el.checked = foco.cfg[k];
+    el.addEventListener("change", () => { foco.cfg[k] = el.checked; salvar(); });
+  }
+  function alternarPainel(botaoId, painelId) {
+    const botao = document.getElementById(botaoId), painel = document.getElementById(painelId);
+    botao.addEventListener("click", () => {
+      painel.hidden = !painel.hidden;
+      botao.setAttribute("aria-expanded", String(!painel.hidden));
+      if (!painel.hidden) desenharRelatorio();
+    });
+  }
+  alternarPainel("abrir-relatorio", "relatorio");
+  alternarPainel("abrir-ajustes", "ajustes");
+
+  // ===== 10. Eventos e início =====
+  document.querySelectorAll(".modo").forEach(b => b.addEventListener("click", () => {
+    if (t.modo === "foco" && t.intervalo) {
+      registrarMinutos(Math.round((t.total - t.restante) / 60));
+      foco.emAndamento = null;
+    }
+    salvar(); definirModo(b.dataset.modo); som.atualizar();
+    status(b.dataset.modo === "foco" ? "Pronto para acender a fogueira?" : "Hora de descansar.");
+  }));
+  elIniciar.addEventListener("click", iniciarOuPausar);
+  elPular.addEventListener("click", () => terminar(false));
+  document.addEventListener("keydown", (e) => {
+    if (e.code === "Space" && !["INPUT", "SELECT", "BUTTON", "TEXTAREA"].includes(document.activeElement.tagName)) { e.preventDefault(); iniciarOuPausar(); }
+  });
+  window.addEventListener("beforeunload", () => salvar());
+
+  preencherHabitos();
+  definirModo("foco");
+  if (apagouAoVoltar) { t.estadoFogo = "apagada"; status("A última fogueira apagou porque a página foi fechada durante o foco.", true); }
+  desenharAmbientes();
+  desenharDistracoes();
+  desenharAcampamento();
+  desenharTarefas();
+  desenharRelatorio();
+  setInterval(desenharResumo, 30000);
+</script>
+</body>
+</html>

@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Conquistas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="comum.css">
+<style>
+  /* Layout: emblema grande no topo, trilha rolável, desafios do mês em grade e números de sempre */
+  :root {
+    --bg: #f1efea; --surface: #ffffff; --fg: #1d1a16; --muted: #6a6258; --line: #e0dbd2;
+    --ouro: #c98a00; --ouro-soft: #f8ecc9; --ok: #2f8a5f; --ok-soft: #d6efe2;
+    --nav-ativo: var(--ouro); --nav-ativo-fg: #ffffff;
+    --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+    --body: "Figtree", "Segoe UI", system-ui, sans-serif;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #14120f; --surface: #1e1b17; --fg: #f1ebe2; --muted: #a99f92; --line: #332e27; --ouro: #f0b53a; --ouro-soft: #3a2f16; --ok: #4cc48b; --ok-soft: #1b3a2b; --nav-ativo-fg: #241a08; color-scheme: dark; }
+  }
+  :root[data-theme="dark"] { --bg: #14120f; --surface: #1e1b17; --fg: #f1ebe2; --muted: #a99f92; --line: #332e27; --ouro: #f0b53a; --ouro-soft: #3a2f16; --ok: #4cc48b; --ok-soft: #1b3a2b; --nav-ativo-fg: #241a08; color-scheme: dark; }
+
+  * { box-sizing: border-box; }
+  :root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 16px; line-height: 1.5; }
+  [hidden] { display: none !important; }
+  .wrap {
+    max-width: 760px; margin: 0 auto; padding-block: 16px 64px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+    display: flex; flex-direction: column; gap: 24px;
+  }
+  h1, h2 { font-family: var(--display); margin: 0; text-wrap: balance; }
+  h1 { font-size: 28px; font-weight: 800; line-height: 1.1; }
+  h2 { font-size: 20px; font-weight: 600; }
+  .rot { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .cartao { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  button:focus-visible, a:focus-visible { outline: 2px solid var(--ouro); outline-offset: 2px; }
+
+  /* Herói */
+  .heroi { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px 28px; align-items: center; }
+  #emblema { width: 200px; height: 200px; }
+  .heroi-info { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .numero { font-family: var(--display); line-height: 1; }
+  .numero b { font-size: 64px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .numero span { font-size: 22px; font-weight: 600; color: var(--muted); }
+  .nivel { align-self: flex-start; font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 3px 10px; border-radius: 99px; background: var(--ouro-soft); color: var(--nivel-fg, var(--ouro)); }
+  .heroi-info p { margin: 0; color: var(--muted); font-size: 14px; }
+  .barra { height: 6px; background: var(--line); border-radius: 99px; overflow: hidden; }
+  .barra > span { display: block; height: 100%; width: 0; background: var(--ouro); border-radius: 99px; }
+
+  /* Trilha */
+  .trilha-cartao { display: flex; flex-direction: column; gap: 8px; }
+  .trilha-cab { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .trilha-cab span { font-size: 13px; color: var(--muted); }
+  .trilha-scroll { overflow-x: auto; padding: 22px 4px 8px; }
+  .trilha { list-style: none; margin: 0; padding: 0; display: flex; align-items: flex-start; width: max-content; }
+  .parada { width: 88px; flex: 0 0 88px; display: flex; flex-direction: column; align-items: center; position: relative; }
+  .nivel-btn { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px; width: 100%; background: transparent; border: 1.5px solid transparent; border-radius: 12px; text-align: center; color: var(--muted); }
+  .nivel-btn:hover { border-color: var(--line); }
+  .nivel-btn[aria-pressed="true"] { border-color: var(--ouro); }
+  .nivel-btn canvas { width: 56px; height: 56px; }
+  .nivel-nome { font-size: 12px; font-weight: 600; color: var(--fg); line-height: 1.2; }
+  .parada.bloqueada .nivel-nome { color: var(--muted); }
+  .nivel-dias, .nivel-data { font-size: 11px; font-variant-numeric: tabular-nums; }
+  .nivel-data { color: var(--ok); font-weight: 600; }
+  .voce { position: absolute; top: -20px; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; background: var(--ouro); color: var(--surface); padding: 1px 7px; border-radius: 99px; white-space: nowrap; }
+  .ligacao { flex: 0 0 44px; height: 4px; margin-top: 36px; background: var(--line); border-radius: 99px; position: relative; }
+  .ligacao > span { display: block; height: 100%; background: var(--ouro); border-radius: 99px; }
+  .marcador { position: absolute; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: var(--ouro); box-shadow: 0 0 0 3px var(--ouro-soft); }
+  .marcador span { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 11px; font-weight: 700; color: var(--ouro); font-variant-numeric: tabular-nums; }
+
+  /* Desafios */
+  .secao { display: flex; flex-direction: column; gap: 12px; }
+  .secao-cab { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .secao-cab span { font-size: 14px; color: var(--muted); }
+  .desafios { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .desafio { display: flex; flex-direction: column; gap: 10px; }
+  .desafio .topo-d { display: flex; align-items: center; gap: 12px; }
+  .medalha { width: 52px; height: 52px; flex: 0 0 auto; }
+  .desafio h3 { margin: 0; font-size: 16px; font-weight: 700; line-height: 1.25; }
+  .desafio p { margin: 0; font-size: 14px; color: var(--muted); }
+  .desafio .conta { display: flex; justify-content: space-between; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--muted); }
+  .desafio .conta b { color: var(--fg); }
+  .desafio.completo { border-color: var(--ouro); }
+  .desafio.completo .barra > span { background: var(--ok); }
+  .feito-em { font-size: 13px; font-weight: 700; color: var(--ok); }
+
+  /* Medalhas e números */
+  .medalhas { display: flex; flex-wrap: wrap; gap: 12px; }
+  .medalha-item { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px 8px 8px; }
+  .medalha-item svg { width: 40px; height: 40px; }
+  .medalha-item div { display: flex; flex-direction: column; line-height: 1.25; }
+  .medalha-item b { font-size: 14px; }
+  .medalha-item span { font-size: 12px; color: var(--muted); }
+  .vazio { color: var(--muted); font-size: 15px; margin: 0; }
+  .numeros { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+  .numeros div { display: flex; flex-direction: column; }
+  .numeros b { font-family: var(--display); font-size: 30px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .numeros span { font-size: 13px; color: var(--muted); }
+
+  @media (max-width: 640px) {
+    .heroi { grid-template-columns: minmax(0, 1fr); justify-items: center; text-align: center; }
+    .heroi-info { align-items: center; }
+    .nivel { align-self: center; }
+    .heroi-info .barra { width: 100%; }
+    .desafios { grid-template-columns: minmax(0, 1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav id="nav-app"></nav>
+  <h1>Conquistas</h1>
+
+  <section class="cartao heroi" aria-label="Sua ofensiva">
+    <canvas id="emblema" role="img" aria-label="Emblema da ofensiva"></canvas>
+    <div class="heroi-info">
+      <span class="rot" id="h-rotulo">Ofensiva</span>
+      <div class="numero"><b id="h-dias">0</b> <span id="h-unidade">dias</span></div>
+      <span class="nivel" id="h-nivel">Faísca</span>
+      <p id="h-recorde"></p>
+      <div class="barra" aria-hidden="true"><span id="h-barra"></span></div>
+      <p id="h-proximo"></p>
+    </div>
+  </section>
+
+  <section class="cartao trilha-cartao" aria-label="Trilha até 500 dias">
+    <div class="trilha-cab"><h2>Trilha até 500 dias</h2><span>Toque num nível para ver a prévia</span></div>
+    <div class="trilha-scroll" id="trilha-scroll"><ol class="trilha" id="trilha"></ol></div>
+  </section>
+
+  <section class="secao" aria-label="Desafios do mês">
+    <div class="secao-cab"><h2 id="d-titulo">Desafios do mês</h2><span id="d-restam"></span></div>
+    <div class="desafios" id="desafios"></div>
+  </section>
+
+  <section class="secao" aria-label="Medalhas">
+    <h2>Medalhas</h2>
+    <div class="medalhas" id="medalhas"></div>
+  </section>
+
+  <section class="secao" aria-label="Números de sempre">
+    <h2>Números de sempre</h2>
+    <div class="numeros cartao" id="numeros"></div>
+  </section>
+</div>
+
+<script src="comum.js"></script>
+<script src="chama.js"></script>
+<script>
+  montarNav("conquistas.html");
+
+  // ===== 1. Ler os dados das outras páginas =====
+  const habitos = ler(CHAVES.habitos) || { habitos: [] };
+  const foco = ler(CHAVES.foco) || {};
+  const treino = ler(CHAVES.treino) || { sessoes: [] };
+  if (registrarConquistas(habitos)) gravar(CHAVES.habitos, habitos);
+
+  const { dias, acesaHoje } = ofensivaDe(habitos);
+  const nivelAtual = nivelDe(dias);
+  const of = { previa: null, previaAte: 0 };
+
+  // ===== 2. Herói =====
+  document.getElementById("h-dias").textContent = dias;
+  document.getElementById("h-unidade").textContent = dias === 1 ? "dia" : "dias";
+  document.getElementById("h-nivel").textContent = NIVEIS[nivelAtual].nome;
+  document.querySelector(".heroi").style.setProperty("--nivel-fg", nivelAtual === 0 ? "var(--muted)" : (NIVEIS[nivelAtual].ext || ["", "#c86bff"])[1]);
+  const rec = habitos.recorde;
+  document.getElementById("h-recorde").textContent = rec && rec.dias
+    ? "Recorde: " + rec.dias + (rec.dias === 1 ? " dia" : " dias") + ", em " + formatarData(rec.data) : "Seu recorde aparece aqui.";
+  const prox = NIVEIS[nivelAtual + 1];
+  if (prox) {
+    document.getElementById("h-proximo").textContent = "Faltam " + (prox.min - dias) + " dias para " + prox.nome;
+    document.getElementById("h-barra").style.width = ((dias - NIVEIS[nivelAtual].min) / (prox.min - NIVEIS[nivelAtual].min) * 100) + "%";
+  } else {
+    document.getElementById("h-proximo").textContent = "Nível máximo. 500 dias de chama acesa.";
+    document.getElementById("h-barra").style.width = "100%";
+  }
+
+  const emblemaCtx = prepararCanvas(document.getElementById("emblema"), 200);
+  function quadro(agora) {
+    if (of.previa !== null && agora > of.previaAte) {
+      of.previa = null;
+      document.getElementById("h-rotulo").textContent = "Ofensiva";
+      document.querySelectorAll(".nivel-btn").forEach(b => b.setAttribute("aria-pressed", "false"));
+    }
+    const nivel = of.previa !== null ? of.previa : nivelAtual;
+    desenharEmblema(emblemaCtx, 200, nivel, movimentoReduzido ? .4 : agora / 1000, { apagada: of.previa === null && !acesaHoje && dias > 0 });
+  }
+  function animar(agora) { if (!document.hidden) quadro(agora); requestAnimationFrame(animar); }
+  if (movimentoReduzido) quadro(0); else requestAnimationFrame(animar);
+
+  // ===== 3. Trilha até 500 dias =====
+  function desenharTrilha() {
+    const trilha = document.getElementById("trilha"), rolagem = document.getElementById("trilha-scroll");
+    const conquistas = habitos.conquistas || {};
+    trilha.innerHTML = "";
+    let paradaAtual = null;
+    NIVEIS.forEach((n, i) => {
+      const conquistado = i === 0 || !!conquistas[i] || dias >= n.min;
+      const li = document.createElement("li");
+      li.className = "parada" + (conquistado ? "" : " bloqueada");
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "nivel-btn";
+      b.setAttribute("aria-pressed", "false");
+      b.setAttribute("aria-label", n.nome + ", " + n.min + " dias" + (conquistas[i] ? ", conquistado em " + formatarData(conquistas[i]) : conquistado ? "" : ", bloqueado") + ". Ver prévia.");
+      const cv = document.createElement("canvas");
+      desenharEmblema(prepararCanvas(cv, 56), 56, i, .4, { bloqueado: !conquistado });
+      const nome = document.createElement("span"); nome.className = "nivel-nome"; nome.textContent = n.nome;
+      const qtd = document.createElement("span"); qtd.className = "nivel-dias"; qtd.textContent = n.min + (n.min === 1 ? " dia" : " dias");
+      b.append(cv, nome, qtd);
+      if (conquistas[i]) { const d = document.createElement("span"); d.className = "nivel-data"; d.textContent = formatarData(conquistas[i]); b.appendChild(d); }
+      b.addEventListener("click", () => {
+        of.previa = of.previa === i ? null : i;
+        of.previaAte = performance.now() + 6000;
+        document.getElementById("h-rotulo").textContent = of.previa === null ? "Ofensiva" : "Prévia: " + n.nome + " (" + n.min + " dias)";
+        trilha.querySelectorAll(".nivel-btn").forEach((x, k) => x.setAttribute("aria-pressed", String(of.previa === k)));
+        if (movimentoReduzido) quadro(performance.now());
+        document.querySelector(".heroi").scrollIntoView({ block: "nearest", behavior: movimentoReduzido ? "auto" : "smooth" });
+      });
+      li.appendChild(b);
+      if (i === nivelAtual) { const v = document.createElement("span"); v.className = "voce"; v.textContent = "Seu nível"; li.appendChild(v); paradaAtual = li; }
+      trilha.appendChild(li);
+
+      const p = NIVEIS[i + 1];
+      if (p) {
+        const lig = document.createElement("li"); lig.className = "ligacao"; lig.setAttribute("aria-hidden", "true");
+        let pct = 0;
+        if (dias >= p.min) pct = 100; else if (dias >= n.min) pct = (dias - n.min) / (p.min - n.min) * 100;
+        const fill = document.createElement("span"); fill.style.width = pct + "%"; lig.appendChild(fill);
+        if (i === nivelAtual && dias > 0) {
+          const m = document.createElement("div"); m.className = "marcador"; m.style.left = Math.max(8, pct) + "%";
+          const r = document.createElement("span"); r.textContent = "dia " + dias; m.appendChild(r); lig.appendChild(m);
+        }
+        trilha.appendChild(lig);
+      }
+    });
+    if (paradaAtual) rolagem.scrollLeft = Math.max(0, paradaAtual.offsetLeft - rolagem.clientWidth / 2 + paradaAtual.offsetWidth);
+  }
+
+  // ===== 4. Desafios do mês =====
+  const hoje = diasAtras(0);
+  const mesChave = hojeChave().slice(0, 7);                 // "2026-10"
+  const diasNoMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
+  const diasDoMesAteHoje = [];
+  for (let d = 1; d <= hoje.getDate(); d++) diasDoMesAteHoje.push(mesChave + "-" + String(d).padStart(2, "0"));
+
+  const DESAFIOS = [
+    { id: "habitos", titulo: "Mês constante", icone: "check", meta: Math.ceil(diasNoMes * .65),
+      texto: (m) => "Marque pelo menos um hábito em " + m + " dias do mês.",
+      progresso: () => diasDoMesAteHoje.filter(d => (habitos.habitos || []).some(h => h.feitos[d])).length },
+    { id: "foco", titulo: "Mestre do foco", icone: "fogo", meta: 20,
+      texto: (m) => "Complete " + m + " fogueiras de foco no mês.",
+      progresso: () => diasDoMesAteHoje.reduce((s, d) => s + ((foco.fogueiras || {})[d] || { acesas: 0 }).acesas, 0) },
+    { id: "treino", titulo: "Ferro no mês", icone: "peso", meta: 12,
+      texto: (m) => "Registre " + m + " treinos no mês.",
+      progresso: () => (treino.sessoes || []).filter(s => s.dia.startsWith(mesChave) && (s.itens || []).some(it => it.series.length)).length }
+  ];
+
+  const ICONES = {
+    check: '<path d="M-9 0l6 6 12-12" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>',
+    fogo: '<path d="M0 12c-5.5 0-8.5-3.4-8.5-7.6 0-3.8 2.6-6.3 4.4-8.4.4 2 1.3 3.3 2.6 3.9-.2-3.8 1.7-7.8 4.6-10.6.4 4 1.8 6.3 3.6 8.3 1.4 1.6 2.1 3.8 2.1 6.4 0 4.8-3.4 8-8.8 8z" fill="#fff"/>',
+    peso: '<path d="M-12 -4v8M-8 -8v16M8 -8v16M12 -4v8M-8 0h16" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/>'
+  };
+  const CORES_MEDALHA = { habitos: ["#3fae7a", "#1f6b47"], foco: ["#ff9a2e", "#c4461a"], treino: ["#e0503a", "#8f1f12"] };
+
+  // Medalha em SVG: um disco com borda serrilhada e o ícone do desafio
+  function medalhaSVG(id, completo, rotulo) {
+    const [c1, c2] = completo ? CORES_MEDALHA[id] : ["#b9b2a8", "#8d867c"];
+    let dentes = "";
+    for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2; dentes += (i ? "L" : "M") + (Math.cos(a) * 30).toFixed(1) + " " + (Math.sin(a) * 30).toFixed(1) + "L" + (Math.cos(a + Math.PI / 16) * 26).toFixed(1) + " " + (Math.sin(a + Math.PI / 16) * 26).toFixed(1); }
+    const desafio = DESAFIOS.find(d => d.id === id);
+    return '<svg viewBox="-32 -32 64 64" role="img" aria-label="' + rotulo + '"><path d="' + dentes + 'Z" fill="' + (completo ? "#f5c542" : c2) + '"/>' +
+      '<defs><linearGradient id="g-' + id + (completo ? "c" : "") + '" x1="0" y1="-24" x2="0" y2="24" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="' + c1 + '"/><stop offset="1" stop-color="' + c2 + '"/></linearGradient></defs>' +
+      '<circle r="23" fill="url(#g-' + id + (completo ? "c" : "") + ')"/><circle r="23" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="2"/>' + ICONES[desafio.icone] + "</svg>";
+  }
+
+  function desenharDesafios() {
+    habitos.desafios = habitos.desafios || {};
+    const registro = habitos.desafios[mesChave] = habitos.desafios[mesChave] || {};
+    let mudou = false;
+    const cont = document.getElementById("desafios");
+    cont.innerHTML = "";
+    document.getElementById("d-titulo").textContent = "Desafios de " + NOMES_MESES[hoje.getMonth()];
+    const restam = diasNoMes - hoje.getDate();
+    document.getElementById("d-restam").textContent = restam === 0 ? "Último dia do mês" : "Restam " + restam + (restam === 1 ? " dia" : " dias");
+
+    for (const d of DESAFIOS) {
+      const feito = Math.min(d.meta, d.progresso());
+      if (feito >= d.meta && !registro[d.id]) { registro[d.id] = hojeChave(); mudou = true; avisar("Desafio concluído: " + d.titulo + "!"); }
+      const completo = !!registro[d.id];
+      const card = document.createElement("article");
+      card.className = "cartao desafio" + (completo ? " completo" : "");
+      card.innerHTML =
+        '<div class="topo-d"><span class="medalha">' + medalhaSVG(d.id, completo, d.titulo) + '</span><div><h3></h3><p></p></div></div>' +
+        '<div class="barra" aria-hidden="true"><span style="width:' + (feito / d.meta * 100) + '%"></span></div>' +
+        '<div class="conta"><span><b>' + feito + "</b> de " + d.meta + "</span><span>" + (completo ? "" : Math.round(feito / d.meta * 100) + "%") + "</span></div>";
+      card.querySelector("h3").textContent = d.titulo;
+      card.querySelector("p").textContent = d.texto(d.meta);
+      if (completo) { const f = document.createElement("span"); f.className = "feito-em"; f.textContent = "Concluído em " + formatarData(registro[d.id]); card.appendChild(f); }
+      cont.appendChild(card);
+    }
+    if (mudou) gravar(CHAVES.habitos, habitos);
+  }
+
+  // ===== 5. Medalhas de todos os meses =====
+  function desenharMedalhas() {
+    const cont = document.getElementById("medalhas");
+    cont.innerHTML = "";
+    const meses = Object.keys(habitos.desafios || {}).sort().reverse();
+    let algum = false;
+    for (const m of meses) {
+      for (const d of DESAFIOS) {
+        const data = habitos.desafios[m][d.id];
+        if (!data) continue;
+        algum = true;
+        const [a, mm] = m.split("-");
+        const item = document.createElement("div");
+        item.className = "medalha-item";
+        item.innerHTML = medalhaSVG(d.id, true, d.titulo) + "<div><b></b><span></span></div>";
+        item.querySelector("b").textContent = d.titulo;
+        item.querySelector("div span").textContent = NOMES_MESES[Number(mm) - 1] + " de " + a;
+        cont.appendChild(item);
+      }
+    }
+    if (!algum) cont.innerHTML = '<p class="vazio">Complete um desafio do mês para ganhar sua primeira medalha.</p>';
+  }
+
+  // ===== 6. Números de sempre =====
+  function desenharNumeros() {
+    const diasComHabito = new Set();
+    (habitos.habitos || []).forEach(h => Object.keys(h.feitos).forEach(d => diasComHabito.add(d)));
+    const fogueiras = Object.values(foco.fogueiras || {}).reduce((s, f) => s + f.acesas, 0);
+    const minutos = Object.values(foco.log || {}).reduce((s, m) => s + m, 0);
+    const sessoes = (treino.sessoes || []).filter(s => (s.itens || []).some(it => it.series.length));
+    const prs = sessoes.reduce((s, ses) => s + ses.itens.reduce((a, it) => a + it.series.filter(x => x.pr).length, 0), 0);
+    const itens = [
+      [diasComHabito.size, "dias com hábito marcado"],
+      [fogueiras, "fogueiras de foco acesas"],
+      [(minutos / 60).toFixed(1).replace(".", ","), "horas de foco"],
+      [sessoes.length, "treinos registrados"],
+      [prs, "recordes pessoais no treino"]
+    ];
+    document.getElementById("numeros").innerHTML = itens.map(([v, r]) => "<div><b>" + v + "</b><span>" + r + "</span></div>").join("");
+  }
+
+  desenharTrilha();
+  desenharDesafios();
+  desenharMedalhas();
+  desenharNumeros();
+</script>
+</body>
+</html>

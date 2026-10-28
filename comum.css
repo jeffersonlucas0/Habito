@@ -1,0 +1,48 @@
+/* comum.css — navegação e aviso, iguais em todas as páginas.
+   Cada página define suas próprias cores (--bg, --surface, --fg, --muted, --line, --nav-ativo). */
+
+.nav-app {
+  display: flex; gap: 4px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 4px;
+}
+.nav-item {
+  flex: 1 1 0; min-width: 0;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 9px 8px; border-radius: 10px;
+  color: var(--muted); text-decoration: none; font-weight: 600; font-size: 14px;
+  transition: background-color .15s, color .15s;
+}
+.nav-item svg { width: 20px; height: 20px; flex: 0 0 auto; }
+.nav-item:hover { color: var(--fg); }
+.nav-item[aria-current="page"] { background: var(--nav-ativo); color: var(--nav-ativo-fg, #fff); }
+.nav-item:focus-visible { outline: 2px solid var(--nav-ativo); outline-offset: 2px; }
+
+/* Rodapé */
+.rodape {
+  margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line);
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  font-size: 13px; color: var(--muted); text-align: center;
+}
+.rodape strong { color: var(--fg); font-weight: 700; }
+
+/* No celular, a navegação vira uma barra fixa embaixo, como num app */
+@media (max-width: 600px) {
+  .nav-app {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+    border-radius: 0; border-width: 1px 0 0;
+    padding: 6px max(8px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px));
+  }
+  .nav-item { flex-direction: column; gap: 2px; font-size: 11px; padding: 6px 2px; }
+  .nav-item svg { width: 22px; height: 22px; }
+  body { padding-bottom: 76px; }
+  .toast { bottom: calc(84px + env(safe-area-inset-bottom, 0px)) !important; }
+}
+
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  max-width: calc(100% - 32px); box-sizing: border-box;
+  background: var(--fg); color: var(--bg); padding: 12px 18px; border-radius: 12px;
+  font-weight: 600; font-size: 15px; box-shadow: 0 8px 24px rgba(0,0,0,.2); z-index: 40;
+}
+@media (prefers-reduced-motion: reduce) { .nav-item { transition: none; } }

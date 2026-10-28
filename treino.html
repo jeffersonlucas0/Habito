@@ -1,0 +1,539 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Treino</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="comum.css">
+<style>
+  /* Layout: números do mês no topo, o treino de hoje como cartão principal, depois evolução e histórico */
+  :root {
+    --bg: #f4f1ee; --surface: #ffffff; --fg: #1f1a17; --muted: #6d625a; --line: #e5ddd6;
+    --accent: #c8401c; --accent-fg: #ffffff; --accent-soft: #f9dfd3; --ok: #2f8a5f; --ok-soft: #d6efe2;
+    --nav-ativo: var(--accent); --nav-ativo-fg: var(--accent-fg);
+    --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+    --body: "Figtree", "Segoe UI", system-ui, sans-serif;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #16120f; --surface: #211b17; --fg: #f2e9e2; --muted: #ab9d92; --line: #372d26; --accent: #ff6a3d; --accent-fg: #2a0d04; --accent-soft: #3d2219; --ok: #4cc48b; --ok-soft: #1b3a2b; color-scheme: dark; }
+  }
+  :root[data-theme="dark"] { --bg: #16120f; --surface: #211b17; --fg: #f2e9e2; --muted: #ab9d92; --line: #372d26; --accent: #ff6a3d; --accent-fg: #2a0d04; --accent-soft: #3d2219; --ok: #4cc48b; --ok-soft: #1b3a2b; color-scheme: dark; }
+
+  * { box-sizing: border-box; }
+  :root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 16px; line-height: 1.5; }
+  [hidden] { display: none !important; }
+  .wrap {
+    max-width: 720px; margin: 0 auto; padding-block: 16px 64px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+    display: flex; flex-direction: column; gap: 20px;
+  }
+  h1, h2, h3 { font-family: var(--display); margin: 0; text-wrap: balance; }
+  h1 { font-size: 28px; font-weight: 800; line-height: 1.1; }
+  h2 { font-size: 20px; font-weight: 600; }
+  h3 { font-size: 17px; font-weight: 600; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  input, select { font: inherit; color: var(--fg); background: var(--bg); border: 1.5px solid var(--line); border-radius: 8px; padding: 8px 10px; min-width: 0; }
+  .rot { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .cartao { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+  .btn { padding: 9px 16px; border: 0; border-radius: 10px; background: var(--fg); color: var(--bg); font-weight: 600; }
+  .btn.forte { background: var(--accent); color: var(--accent-fg); }
+  .btn.leve { background: transparent; color: var(--fg); border: 1.5px solid var(--line); padding: 6px 12px; font-size: 14px; }
+  .mini { background: transparent; border: 0; color: var(--muted); font-size: 13px; padding: 2px 6px; }
+  .mini:hover { color: var(--fg); }
+
+  .cab-pagina { display: flex; justify-content: space-between; align-items: end; gap: 12px; flex-wrap: wrap; }
+  .numeros-mes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .num { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; }
+  .num b { font-family: var(--display); font-size: 28px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .num span { font-size: 13px; color: var(--muted); }
+  .num.destaque b { color: var(--accent); }
+
+  .aviso { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; font-size: 14px; color: var(--muted); border: 1px dashed var(--line); border-radius: 10px; padding: 10px 14px; }
+  .aviso p { margin: 0; flex: 1 1 240px; }
+
+  /* Treino de hoje */
+  .hoje-cab { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .hoje-cab span { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .exercicio { border: 1.5px solid var(--line); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+  .exercicio.pr-flash { animation: flash 1.2s ease; }
+  @keyframes flash { 0% { border-color: var(--accent); box-shadow: 0 0 0 6px var(--accent-soft); } 100% { box-shadow: 0 0 0 0 transparent; } }
+  .ex-topo { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .ex-topo div { min-width: 0; }
+  .ex-nome { overflow-wrap: anywhere; }
+  .ex-info { font-size: 13px; color: var(--muted); }
+  .grupo { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--accent); }
+  .series { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+  .serie { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto auto; align-items: center; gap: 8px; font-variant-numeric: tabular-nums; padding: 4px 0; border-bottom: 1px solid var(--line); }
+  .serie:last-child { border-bottom: 0; }
+  .serie .n { font-size: 13px; color: var(--muted); font-weight: 600; }
+  .pill-pr { font-size: 11px; font-weight: 800; letter-spacing: .05em; background: var(--accent); color: var(--accent-fg); padding: 2px 8px; border-radius: 99px; }
+  .nova-serie { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+  .nova-serie label { display: flex; flex-direction: column; gap: 2px; font-size: 12px; font-weight: 600; color: var(--muted); }
+  .nova-serie input { width: 88px; }
+  .add-ex { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; border-top: 1px dashed var(--line); padding-top: 12px; }
+  .add-ex label { display: flex; flex-direction: column; gap: 2px; font-size: 12px; font-weight: 600; color: var(--muted); flex: 1 1 160px; min-width: 0; }
+  .vazio { color: var(--muted); font-size: 15px; margin: 0; }
+
+  .descanso {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    background: var(--accent-soft); border-radius: 12px; padding: 10px 14px;
+  }
+  .descanso .tempo { font-family: var(--display); font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
+  .descanso .rot { flex: 1 1 auto; }
+  .fim-treino { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; justify-content: space-between; border-top: 1px solid var(--line); padding-top: 12px; }
+  .fim-treino label { display: flex; flex-direction: column; gap: 2px; font-size: 12px; font-weight: 600; color: var(--muted); }
+  .concluido { color: var(--ok); font-weight: 700; font-size: 14px; }
+
+  /* Evolução */
+  .grafico { width: 100%; overflow-x: auto; }
+  .grafico svg { display: block; width: 100%; height: auto; min-width: 320px; }
+  .g-grade { stroke: var(--line); stroke-width: 1; }
+  .g-texto { fill: var(--muted); font-size: 12px; font-family: var(--body); }
+  .g-linha { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; }
+  .g-area { fill: var(--accent-soft); }
+  .g-ponto { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
+  .g-pr { fill: var(--accent); }
+  .g-valor { fill: var(--fg); font-size: 13px; font-weight: 700; font-family: var(--body); }
+  .evolucao-resumo { margin: 0; font-size: 15px; color: var(--muted); }
+  .evolucao-resumo b { color: var(--fg); }
+
+  /* Histórico */
+  .historico { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+  .historico li { display: grid; grid-template-columns: 76px minmax(0, 1fr) auto; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); align-items: baseline; }
+  .historico li:first-child { border-top: 0; }
+  .h-data { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .h-ex { font-size: 14px; color: var(--muted); overflow-wrap: anywhere; }
+  .h-vol { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+  .h-vol b { color: var(--accent); }
+
+  @media (max-width: 520px) {
+    .numeros-mes { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+    .num { padding: 10px; }
+    .num b { font-size: 22px; }
+    .historico li { grid-template-columns: 64px minmax(0, 1fr); }
+    .h-vol { grid-column: 2; text-align: left; }
+  }
+  @media (prefers-reduced-motion: reduce) { .exercicio.pr-flash { animation: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav id="nav-app"></nav>
+
+  <div class="cab-pagina"><h1>Treino</h1><span class="rot" id="data-hoje"></span></div>
+
+  <div class="numeros-mes">
+    <div class="num"><b id="n-mes">0</b><span>treinos no mês</span></div>
+    <div class="num"><b id="n-semana">0</b><span>nesta semana</span></div>
+    <div class="num destaque"><b id="n-prs">0</b><span>recordes no mês</span></div>
+  </div>
+
+  <div class="aviso" id="aviso" hidden>
+    <p>Estes treinos são exemplos, com seis semanas de histórico inventado, para você ver os gráficos e recordes.</p>
+    <button class="btn leve" type="button" id="zerar">Começar do zero</button>
+  </div>
+
+  <section class="cartao" aria-label="Treino de hoje">
+    <div class="hoje-cab"><h2>Treino de hoje</h2><span id="hoje-resumo"></span></div>
+    <div class="descanso" id="descanso" hidden>
+      <span class="tempo" id="descanso-tempo">1:30</span>
+      <span class="rot">Descanso</span>
+      <button class="btn leve" type="button" id="descanso-menos">−15 s</button>
+      <button class="btn leve" type="button" id="descanso-mais">+15 s</button>
+      <button class="btn leve" type="button" id="descanso-pular">Pular</button>
+    </div>
+    <div id="exercicios-hoje"></div>
+    <form class="add-ex" id="form-add-ex">
+      <label for="sel-ex">Adicionar exercício<select id="sel-ex"></select></label>
+      <button class="btn" type="submit">Adicionar</button>
+    </form>
+    <form class="add-ex" id="form-novo-ex" hidden>
+      <label for="novo-ex-nome">Nome do exercício<input type="text" id="novo-ex-nome" maxlength="40" placeholder="Ex.: Leg press" autocomplete="off"></label>
+      <label for="novo-ex-grupo">Grupo
+        <select id="novo-ex-grupo">
+          <option>Peito</option><option>Costas</option><option>Pernas</option><option>Ombros</option><option>Braços</option><option>Core</option><option>Cardio</option>
+        </select>
+      </label>
+      <button class="btn" type="submit">Criar</button>
+      <button class="btn leve" type="button" id="cancelar-novo-ex">Cancelar</button>
+    </form>
+    <div class="fim-treino">
+      <label for="sel-habito">Ao concluir, marcar o hábito<select id="sel-habito"></select></label>
+      <div id="fim-acao"></div>
+    </div>
+  </section>
+
+  <section class="cartao" aria-label="Evolução">
+    <div class="hoje-cab">
+      <h2>Evolução</h2>
+      <label for="sel-evolucao" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Exercício</label>
+      <select id="sel-evolucao"></select>
+    </div>
+    <p class="evolucao-resumo" id="evolucao-resumo"></p>
+    <div class="grafico" id="grafico"></div>
+  </section>
+
+  <section class="cartao" aria-label="Histórico">
+    <h2>Histórico</h2>
+    <ul class="historico" id="historico"></ul>
+  </section>
+</div>
+
+<script src="comum.js"></script>
+<script>
+  montarNav("treino.html");
+
+  // ===== 1. Dados =====
+  // exercicios: [{ id, nome, grupo }]
+  // sessoes:    [{ id, dia, concluida, itens: [{ exId, series: [{ reps, kg, pr }] }] }]
+  const kg = (n) => n.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+  const salvar = () => gravar(CHAVES.treino, treino);
+
+  function exemplo() {
+    const exercicios = [
+      { id: 1, nome: "Supino reto", grupo: "Peito" },
+      { id: 2, nome: "Agachamento", grupo: "Pernas" },
+      { id: 3, nome: "Remada curvada", grupo: "Costas" },
+      { id: 4, nome: "Desenvolvimento", grupo: "Ombros" },
+      { id: 5, nome: "Rosca direta", grupo: "Braços" }
+    ];
+    // Treino A (peito, ombro, braço) e B (perna, costas), alternados, com carga subindo aos poucos
+    const diasTreino = [40, 37, 33, 30, 26, 23, 19, 16, 12, 9, 5, 2];
+    const base = { 1: 30, 2: 40, 3: 30, 4: 16, 5: 10 }, passo = { 1: 2.5, 2: 5, 3: 2.5, 4: 2, 5: 1 };
+    const sessoes = diasTreino.map((n, i) => {
+      const exIds = i % 2 === 0 ? [1, 4, 5] : [2, 3];
+      const semana = Math.floor(i / 2);
+      return {
+        id: 1000 + i, dia: chaveDoDia(diasAtras(n)), concluida: true,
+        itens: exIds.map(exId => {
+          const carga = base[exId] + passo[exId] * Math.floor(semana * .8);
+          return { exId, series: [10, 10, 8].map(reps => ({ reps, kg: carga, pr: false })) };
+        })
+      };
+    });
+    const dados = { exemplo: true, exercicios, sessoes, habitoId: null, descanso: 90 };
+    recalcularPRs(dados);
+    return dados;
+  }
+
+  // Recorde pessoal: a primeira série de um treino que passa a maior carga dos treinos ANTERIORES.
+  // O primeiro treino de um exercício não conta como recorde (ainda não há com o que comparar).
+  function recalcularPRs(dados) {
+    const maior = {};   // maior carga por exercício, até o treino anterior
+    [...dados.sessoes].sort((a, b) => a.dia.localeCompare(b.dia)).forEach(s => s.itens.forEach(it => {
+      const anterior = maior[it.exId];
+      let atual = anterior;
+      it.series.forEach(se => {
+        se.pr = anterior !== undefined && se.kg > atual;
+        atual = atual === undefined ? se.kg : Math.max(atual, se.kg);
+      });
+      if (it.series.length) maior[it.exId] = atual;
+    }));
+  }
+
+  let treino = ler(CHAVES.treino) || exemplo();
+  treino.descanso = treino.descanso || 90;
+  const exPorId = (id) => treino.exercicios.find(e => e.id === id);
+  const sessaoDe = (dia) => treino.sessoes.find(s => s.dia === dia);
+
+  // Dados anteriores de um exercício (sem contar hoje)
+  function historicoDe(exId, ateDia) {
+    const lista = [];
+    [...treino.sessoes].sort((a, b) => a.dia.localeCompare(b.dia)).forEach(s => {
+      if (ateDia && s.dia >= ateDia) return;
+      const it = s.itens.find(x => x.exId === exId);
+      if (it && it.series.length) lista.push({ dia: s.dia, series: it.series });
+    });
+    return lista;
+  }
+  const maiorCarga = (series) => Math.max(...series.map(s => s.kg));
+
+  // ===== 2. Números do topo =====
+  function desenharNumeros() {
+    const mes = hojeChave().slice(0, 7), limiteSemana = chaveDoDia(diasAtras(6));
+    const validas = treino.sessoes.filter(s => s.itens.some(it => it.series.length));
+    document.getElementById("n-mes").textContent = validas.filter(s => s.dia.startsWith(mes)).length;
+    document.getElementById("n-semana").textContent = validas.filter(s => s.dia >= limiteSemana).length;
+    document.getElementById("n-prs").textContent = validas.filter(s => s.dia.startsWith(mes))
+      .reduce((n, s) => n + s.itens.reduce((a, it) => a + it.series.filter(x => x.pr).length, 0), 0);
+    document.getElementById("aviso").hidden = !treino.exemplo;
+  }
+
+  // ===== 3. Treino de hoje =====
+  function desenharHoje() {
+    const hoje = hojeChave(), sessao = sessaoDe(hoje);
+    const cont = document.getElementById("exercicios-hoje");
+    cont.innerHTML = "";
+    cont.style.display = "flex"; cont.style.flexDirection = "column"; cont.style.gap = "10px";
+
+    if (!sessao || sessao.itens.length === 0) {
+      cont.innerHTML = '<p class="vazio">Nenhum exercício hoje ainda. Escolha o primeiro logo abaixo.</p>';
+    } else {
+      sessao.itens.forEach(it => cont.appendChild(cartaoExercicio(sessao, it)));
+    }
+
+    // Resumo e volume do dia
+    let series = 0, volume = 0;
+    (sessao ? sessao.itens : []).forEach(it => it.series.forEach(s => { series++; volume += s.reps * s.kg; }));
+    document.getElementById("hoje-resumo").textContent = series ? series + (series === 1 ? " série · " : " séries · ") + kg(volume) + " kg de volume" : "";
+
+    // Lista de exercícios para adicionar
+    const sel = document.getElementById("sel-ex");
+    const jaTem = new Set(sessao ? sessao.itens.map(i => i.exId) : []);
+    sel.innerHTML = "";
+    treino.exercicios.filter(e => !jaTem.has(e.id)).forEach(e => {
+      const op = document.createElement("option"); op.value = e.id; op.textContent = e.nome + " (" + e.grupo + ")"; sel.appendChild(op);
+    });
+    const novo = document.createElement("option"); novo.value = "novo"; novo.textContent = "+ Criar novo exercício"; sel.appendChild(novo);
+
+    // Concluir
+    const fim = document.getElementById("fim-acao");
+    fim.innerHTML = "";
+    if (sessao && sessao.concluida) {
+      const span = document.createElement("span"); span.className = "concluido"; span.textContent = "Treino de hoje concluído";
+      const reabrir = document.createElement("button"); reabrir.type = "button"; reabrir.className = "mini"; reabrir.textContent = "Reabrir";
+      reabrir.addEventListener("click", () => { sessao.concluida = false; salvar(); desenharHoje(); });
+      fim.append(span, reabrir);
+    } else {
+      const b = document.createElement("button"); b.type = "button"; b.className = "btn forte"; b.textContent = "Concluir treino";
+      b.disabled = !series;
+      b.addEventListener("click", concluirTreino);
+      fim.appendChild(b);
+    }
+  }
+
+  function cartaoExercicio(sessao, it) {
+    const ex = exPorId(it.exId);
+    const anteriores = historicoDe(it.exId, sessao.dia);
+    const ultimo = anteriores[anteriores.length - 1];
+    const recorde = anteriores.length ? Math.max(...anteriores.map(a => maiorCarga(a.series))) : null;
+
+    const box = document.createElement("div");
+    box.className = "exercicio"; box.dataset.ex = it.exId;
+    const topo = document.createElement("div"); topo.className = "ex-topo";
+    const info = document.createElement("div");
+    info.innerHTML = '<span class="grupo"></span><h3 class="ex-nome"></h3><span class="ex-info"></span>';
+    info.querySelector(".grupo").textContent = ex.grupo;
+    info.querySelector(".ex-nome").textContent = ex.nome;
+    info.querySelector(".ex-info").textContent = ultimo
+      ? "Última vez (" + formatarData(ultimo.dia) + "): " + ultimo.series.map(s => s.reps + "×" + kg(s.kg)).join(", ") + " kg · Recorde: " + kg(recorde) + " kg"
+      : "Primeira vez registrando este exercício.";
+    const tirar = document.createElement("button"); tirar.type = "button"; tirar.className = "mini"; tirar.textContent = "Remover";
+    tirar.addEventListener("click", () => {
+      if (!tirar.dataset.confirmar) { tirar.dataset.confirmar = "1"; tirar.textContent = "Confirmar"; setTimeout(() => { delete tirar.dataset.confirmar; tirar.textContent = "Remover"; }, 3000); return; }
+      sessao.itens = sessao.itens.filter(x => x !== it); recalcularPRs(treino); salvar(); tudo();
+    });
+    topo.append(info, tirar);
+
+    const ul = document.createElement("ul"); ul.className = "series";
+    it.series.forEach((s, i) => {
+      const li = document.createElement("li"); li.className = "serie";
+      li.innerHTML = '<span class="n">' + (i + 1) + "</span><span>" + s.reps + " reps × <b>" + kg(s.kg) + " kg</b></span>" + (s.pr ? '<span class="pill-pr">RECORDE</span>' : "<span></span>");
+      const del = document.createElement("button"); del.type = "button"; del.className = "mini"; del.textContent = "Apagar";
+      del.setAttribute("aria-label", "Apagar série " + (i + 1));
+      del.addEventListener("click", () => { it.series.splice(i, 1); recalcularPRs(treino); salvar(); tudo(); });
+      li.appendChild(del); ul.appendChild(li);
+    });
+
+    // Nova série, já preenchida com a última feita
+    const ref = it.series[it.series.length - 1] || (ultimo && ultimo.series[0]) || { reps: 10, kg: 10 };
+    const form = document.createElement("form"); form.className = "nova-serie";
+    const idR = "reps-" + it.exId, idK = "kg-" + it.exId;
+    form.innerHTML = '<label for="' + idR + '">Reps<input type="number" id="' + idR + '" min="1" max="100" inputmode="numeric"></label>' +
+      '<label for="' + idK + '">Carga (kg)<input type="number" id="' + idK + '" min="0" max="999" step="0.5" inputmode="decimal"></label>' +
+      '<button class="btn" type="submit">Adicionar série</button>';
+    form.querySelector("#" + idR).value = ref.reps;
+    form.querySelector("#" + idK).value = ref.kg;
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const reps = Math.round(Number(form.querySelector("#" + idR).value));
+      const carga = Math.round(Number(form.querySelector("#" + idK).value) * 2) / 2;
+      if (!reps || reps < 1 || carga < 0) return;
+      it.series.push({ reps, kg: carga, pr: false });
+      sessao.concluida = false;
+      recalcularPRs(treino); salvar();
+      const nova = it.series[it.series.length - 1];
+      tudo();
+      if (nova.pr) {
+        avisar("Recorde pessoal! " + ex.nome + ": " + kg(carga) + " kg");
+        const el = document.querySelector('.exercicio[data-ex="' + it.exId + '"]');
+        if (el) el.classList.add("pr-flash");
+      }
+      iniciarDescanso();
+      const campo = document.getElementById(idR); if (campo) campo.focus();
+    });
+
+    box.append(topo, ul, form);
+    return box;
+  }
+
+  document.getElementById("form-add-ex").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const v = document.getElementById("sel-ex").value;
+    if (v === "novo") { document.getElementById("form-novo-ex").hidden = false; document.getElementById("form-add-ex").hidden = true; document.getElementById("novo-ex-nome").focus(); return; }
+    adicionarNaSessao(Number(v));
+  });
+  document.getElementById("form-novo-ex").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const nome = document.getElementById("novo-ex-nome").value.trim();
+    if (!nome) return;
+    const ex = { id: Date.now(), nome, grupo: document.getElementById("novo-ex-grupo").value };
+    treino.exercicios.push(ex);
+    document.getElementById("novo-ex-nome").value = "";
+    fecharNovo();
+    adicionarNaSessao(ex.id);
+  });
+  function fecharNovo() { document.getElementById("form-novo-ex").hidden = true; document.getElementById("form-add-ex").hidden = false; }
+  document.getElementById("cancelar-novo-ex").addEventListener("click", fecharNovo);
+
+  function adicionarNaSessao(exId) {
+    const hoje = hojeChave();
+    let sessao = sessaoDe(hoje);
+    if (!sessao) { sessao = { id: Date.now(), dia: hoje, concluida: false, itens: [] }; treino.sessoes.push(sessao); }
+    if (!sessao.itens.some(i => i.exId === exId)) sessao.itens.push({ exId, series: [] });
+    sessao.concluida = false;
+    salvar(); tudo();
+    const campo = document.getElementById("reps-" + exId); if (campo) campo.focus();
+  }
+
+  function concluirTreino() {
+    const sessao = sessaoDe(hojeChave());
+    if (!sessao) return;
+    sessao.concluida = true;
+    let series = 0, volume = 0, prs = 0;
+    sessao.itens.forEach(it => it.series.forEach(s => { series++; volume += s.reps * s.kg; if (s.pr) prs++; }));
+    // Marca o hábito ligado como feito hoje (só hoje pode ser marcado)
+    let extra = "";
+    if (treino.habitoId) {
+      const dados = ler(CHAVES.habitos);
+      const h = dados && dados.habitos.find(x => x.id === treino.habitoId);
+      if (h) { if (!h.feitos[hojeChave()]) { h.feitos[hojeChave()] = "feito"; gravar(CHAVES.habitos, dados); } extra = " e “" + h.nome + "” marcado"; }
+    }
+    salvar(); pararDescanso(); tudo();
+    avisar("Treino concluído: " + series + " séries, " + kg(volume) + " kg" + (prs ? ", " + prs + (prs === 1 ? " recorde" : " recordes") : "") + extra + ".");
+  }
+
+  function preencherHabitos() {
+    const sel = document.getElementById("sel-habito");
+    sel.innerHTML = '<option value="">Nenhum</option>';
+    const dados = ler(CHAVES.habitos);
+    ((dados && dados.habitos) || []).forEach(h => { const op = document.createElement("option"); op.value = h.id; op.textContent = h.nome; sel.appendChild(op); });
+    sel.value = treino.habitoId ? String(treino.habitoId) : "";
+    sel.addEventListener("change", () => { treino.habitoId = sel.value ? Number(sel.value) : null; salvar(); });
+  }
+
+  // ===== 4. Descanso entre séries =====
+  const desc = { fim: 0, intervalo: null, audio: null };
+  function iniciarDescanso() {
+    try { if (!desc.audio) desc.audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
+    desc.fim = Date.now() + treino.descanso * 1000;
+    document.getElementById("descanso").hidden = false;
+    clearInterval(desc.intervalo);
+    desc.intervalo = setInterval(tiqueDescanso, 250);
+    tiqueDescanso();
+  }
+  function tiqueDescanso() {
+    const r = Math.max(0, Math.ceil((desc.fim - Date.now()) / 1000));
+    document.getElementById("descanso-tempo").textContent = Math.floor(r / 60) + ":" + String(r % 60).padStart(2, "0");
+    if (r === 0) { bip(); pararDescanso(); avisar("Descanso acabou. Próxima série!"); }
+  }
+  function pararDescanso() { clearInterval(desc.intervalo); desc.intervalo = null; document.getElementById("descanso").hidden = true; }
+  function bip() {
+    try {
+      const a = desc.audio; if (!a) return;
+      [0, .25].forEach(t0 => { const o = a.createOscillator(), g = a.createGain(); o.frequency.value = 880; g.gain.value = .15; o.connect(g); g.connect(a.destination); o.start(a.currentTime + t0); o.stop(a.currentTime + t0 + .15); });
+    } catch (e) {}
+  }
+  document.getElementById("descanso-menos").addEventListener("click", () => { desc.fim -= 15000; treino.descanso = Math.max(15, treino.descanso - 15); salvar(); tiqueDescanso(); });
+  document.getElementById("descanso-mais").addEventListener("click", () => { desc.fim += 15000; treino.descanso = Math.min(600, treino.descanso + 15); salvar(); tiqueDescanso(); });
+  document.getElementById("descanso-pular").addEventListener("click", pararDescanso);
+
+  // ===== 5. Gráfico de evolução =====
+  let exGrafico = null;
+  function desenharEvolucao() {
+    const sel = document.getElementById("sel-evolucao");
+    const comDados = treino.exercicios.filter(e => historicoDe(e.id).length);
+    sel.innerHTML = "";
+    comDados.forEach(e => { const op = document.createElement("option"); op.value = e.id; op.textContent = e.nome; sel.appendChild(op); });
+    const resumo = document.getElementById("evolucao-resumo"), cont = document.getElementById("grafico");
+    if (!comDados.length) { resumo.textContent = "Registre séries para ver sua evolução aqui."; cont.innerHTML = ""; sel.hidden = true; return; }
+    sel.hidden = false;
+    if (!comDados.some(e => e.id === exGrafico)) exGrafico = comDados[0].id;
+    sel.value = exGrafico;
+
+    const pontos = historicoDe(exGrafico).map(h => ({ dia: h.dia, kg: maiorCarga(h.series), pr: h.series.some(s => s.pr) }));
+    const primeiro = pontos[0].kg, ultimo = pontos[pontos.length - 1].kg, recorde = Math.max(...pontos.map(p => p.kg));
+    const ganho = primeiro ? Math.round((ultimo - primeiro) / primeiro * 100) : 0;
+    resumo.innerHTML = "";
+    const partes = ["De ", kg(primeiro) + " kg", " para ", kg(ultimo) + " kg", " em " + pontos.length + (pontos.length === 1 ? " treino" : " treinos")];
+    partes.forEach((p, i) => { if (i === 1 || i === 3) { const b = document.createElement("b"); b.textContent = p; resumo.appendChild(b); } else resumo.append(p); });
+    if (pontos.length > 1) resumo.append(" (" + (ganho >= 0 ? "+" : "") + ganho + "%). Recorde: " + kg(recorde) + " kg.");
+
+    // Escala: o eixo vertical vai de um valor "redondo" abaixo do mínimo até um acima do máximo
+    const Wd = 640, Hd = 240, esq = 44, dir = 24, topo = 24, baixo = 32;
+    const min = Math.min(...pontos.map(p => p.kg)), max = recorde;
+    const passo = [1, 2, 2.5, 5, 10, 20, 25, 50].find(p => (max - min) / p <= 4) || 50;
+    const y0 = Math.floor(min / passo) * passo, y1 = Math.max(Math.ceil(max / passo) * passo, y0 + passo);
+    const X = (i) => esq + (pontos.length === 1 ? (Wd - esq - dir) / 2 : i / (pontos.length - 1) * (Wd - esq - dir));
+    const Y = (v) => topo + (1 - (v - y0) / (y1 - y0)) * (Hd - topo - baixo);
+
+    let svg = '<svg viewBox="0 0 ' + Wd + " " + Hd + '" role="img" aria-label="Carga máxima por treino">';
+    for (let v = y0; v <= y1 + .001; v += passo) {
+      svg += '<line class="g-grade" x1="' + esq + '" x2="' + (Wd - dir) + '" y1="' + Y(v) + '" y2="' + Y(v) + '"/>';
+      svg += '<text class="g-texto" x="' + (esq - 8) + '" y="' + (Y(v) + 4) + '" text-anchor="end">' + kg(v) + "</text>";
+    }
+    const caminho = pontos.map((p, i) => (i ? "L" : "M") + X(i).toFixed(1) + " " + Y(p.kg).toFixed(1)).join(" ");
+    if (pontos.length > 1) {
+      svg += '<path class="g-area" d="' + caminho + " L" + X(pontos.length - 1) + " " + (Hd - baixo) + " L" + X(0) + " " + (Hd - baixo) + ' Z" opacity=".55"/>';
+      svg += '<path class="g-linha" d="' + caminho + '"/>';
+    }
+    pontos.forEach((p, i) => {
+      svg += '<circle class="' + (p.pr ? "g-pr" : "g-ponto") + '" cx="' + X(i) + '" cy="' + Y(p.kg) + '" r="' + (p.pr ? 5.5 : 4) + '"><title>' + formatarData(p.dia) + ": " + kg(p.kg) + " kg" + (p.pr ? " (recorde)" : "") + "</title></circle>";
+    });
+    const ul = pontos.length - 1;
+    svg += '<text class="g-valor" x="' + Math.min(X(ul), Wd - dir - 4) + '" y="' + (Y(pontos[ul].kg) - 12) + '" text-anchor="end">' + kg(pontos[ul].kg) + " kg</text>";
+    const rotulosX = pontos.length > 2 ? [0, Math.floor(ul / 2), ul] : pontos.map((_, i) => i);
+    rotulosX.forEach(i => { svg += '<text class="g-texto" x="' + X(i) + '" y="' + (Hd - 10) + '" text-anchor="middle">' + formatarData(pontos[i].dia).slice(0, 5) + "</text>"; });
+    svg += "</svg>";
+    cont.innerHTML = svg;
+  }
+  document.getElementById("sel-evolucao").addEventListener("change", (e) => { exGrafico = Number(e.target.value); desenharEvolucao(); });
+
+  // ===== 6. Histórico =====
+  function desenharHistorico() {
+    const ul = document.getElementById("historico");
+    ul.innerHTML = "";
+    const sessoes = treino.sessoes.filter(s => s.itens.some(it => it.series.length)).sort((a, b) => b.dia.localeCompare(a.dia)).slice(0, 12);
+    if (!sessoes.length) { ul.innerHTML = '<li><p class="vazio">Seus treinos concluídos aparecem aqui.</p></li>'; return; }
+    for (const s of sessoes) {
+      let volume = 0, prs = 0;
+      s.itens.forEach(it => it.series.forEach(x => { volume += x.reps * x.kg; if (x.pr) prs++; }));
+      const data = new Date(s.dia + "T12:00:00");
+      const li = document.createElement("li");
+      li.innerHTML = '<span class="h-data"></span><span class="h-ex"></span><span class="h-vol"></span>';
+      li.querySelector(".h-data").textContent = NOMES_DIAS[data.getDay()] + " " + formatarData(s.dia).slice(0, 5);
+      li.querySelector(".h-ex").textContent = s.itens.filter(it => it.series.length).map(it => (exPorId(it.exId) || { nome: "?" }).nome).join(", ");
+      li.querySelector(".h-vol").innerHTML = kg(volume) + " kg" + (prs ? ' · <b>' + prs + (prs === 1 ? " recorde" : " recordes") + "</b>" : "");
+      ul.appendChild(li);
+    }
+  }
+
+  // ===== 7. Início =====
+  document.getElementById("zerar").addEventListener("click", () => {
+    treino = { exemplo: false, exercicios: exemplo().exercicios, sessoes: [], habitoId: treino.habitoId, descanso: treino.descanso };
+    salvar(); tudo();
+  });
+  function tudo() { desenharNumeros(); desenharHoje(); desenharEvolucao(); desenharHistorico(); }
+  document.getElementById("data-hoje").textContent = new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
+  if (!ler(CHAVES.treino)) salvar();
+  preencherHabitos();
+  tudo();
+</script>
+</body>
+</html>

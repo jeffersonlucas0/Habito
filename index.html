@@ -1,0 +1,752 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Hábito a Hábito</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="comum.css">
+<style>
+  /* Layout: uma coluna estreita; cada hábito é um cartão com plano, números e os últimos 7 dias */
+  :root {
+    --bg: #eef2f4;
+    --surface: #ffffff;
+    --fg: #17212b;
+    --muted: #5d6b78;
+    --line: #d5dde3;
+    --done: #2f8a5f;
+    --done-soft: #d6efe2;
+    --done-fg: #ffffff;
+    --today: #d18f0c;
+    --today-soft: #fbefd3;
+    --danger: #b8423a;
+    --nav-ativo: var(--done); --nav-ativo-fg: var(--done-fg);
+    --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+    --body: "Figtree", "Segoe UI", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #10161c; --surface: #18212a; --fg: #e6edf2; --muted: #93a3b1;
+      --line: #2a3640; --done: #3fae7a; --done-soft: #1b3a2b; --done-fg: #0c1a13;
+      --today: #f0b53a; --today-soft: #3a2f16; --danger: #e0756c;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #10161c; --surface: #18212a; --fg: #e6edf2; --muted: #93a3b1;
+    --line: #2a3640; --done: #3fae7a; --done-soft: #1b3a2b; --done-fg: #0c1a13;
+    --today: #f0b53a; --today-soft: #3a2f16; --danger: #e0756c;
+    color-scheme: dark;
+  }
+
+  body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 16px; line-height: 1.5; }
+  .wrap {
+    max-width: 760px; margin: 0 auto;
+    padding-block: 32px 64px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    display: flex; flex-direction: column; gap: 24px;
+  }
+  h1, h2 { font-family: var(--display); margin: 0; text-wrap: balance; }
+  h1 { font-weight: 800; font-size: clamp(30px, 6vw, 42px); line-height: 1.1; }
+  h2 { font-weight: 600; font-size: 20px; line-height: 1.2; }
+
+  header { display: flex; flex-direction: column; gap: 6px; }
+  .rotulo { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  .resumo { color: var(--muted); margin: 0; }
+  .resumo strong { color: var(--fg); }
+  .barra { height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; }
+  .barra > span { display: block; height: 100%; background: var(--done); width: 0; transition: width .3s ease; }
+
+  .faixa {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+    font-size: 14px; border-radius: 10px; padding: 10px 14px;
+  }
+  .faixa p { margin: 0; flex: 1 1 240px; }
+  .faixa.exemplo { color: var(--muted); border: 1px dashed var(--line); }
+  .faixa.recomeco { background: var(--today-soft); color: var(--fg); }
+
+  .linha { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+  /* Ofensiva */
+  .ofensiva {
+    display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px 24px; align-items: center;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px;
+  }
+  #emblema { width: 160px; height: 160px; }
+  .of-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .of-numero { font-family: var(--display); line-height: 1; }
+  .of-numero b { font-size: 56px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+  .of-numero span { font-size: 20px; font-weight: 600; color: var(--muted); }
+  .of-nivel { align-self: flex-start; font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+    padding: 3px 10px; border-radius: 99px; background: var(--nivel-bg, var(--today-soft)); color: var(--nivel-fg, var(--today)); }
+  .of-estado { margin: 4px 0 0; font-size: 14px; color: var(--muted); }
+  .of-estado.apagada { color: var(--today); font-weight: 600; }
+  .of-proximo { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .of-proximo .barra { height: 6px; }
+  .of-proximo .barra > span { background: var(--today); }
+  .mini-emblema { width: 20px; height: 20px; vertical-align: -5px; margin-right: 2px; }
+  @media (max-width: 600px) {
+    .ofensiva { grid-template-columns: minmax(0, 1fr); justify-items: center; text-align: center; }
+    .of-info { align-items: center; }
+    .of-nivel { align-self: center; }
+    .of-proximo { width: 100%; }
+  }
+
+  .of-link { grid-column: 1 / -1; border-top: 1px solid var(--line); padding-top: 12px; color: var(--fg); font-weight: 600; font-size: 14px; text-decoration: none; display: flex; justify-content: space-between; gap: 12px; }
+  .of-link:hover { color: var(--today); }
+  .of-link:focus-visible { outline: 2px solid var(--today); outline-offset: 2px; }
+
+  /* Linha do tempo do dia */
+  .linha-tempo { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .lt-cab { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .lt-cab span { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .lt-lista { list-style: none; margin: 0; padding: 0; position: relative; display: flex; flex-direction: column; }
+  .lt-lista::before { content: ""; position: absolute; left: 63px; top: 8px; bottom: 8px; width: 2px; background: var(--line); }
+  .lt-item {
+    display: grid; grid-template-columns: 52px 24px minmax(0, 1fr) auto; align-items: center; gap: 0 10px;
+    padding: 7px 0; background: none; border: 0; font: inherit; color: inherit; text-align: left; width: 100%; cursor: pointer; border-radius: 8px;
+  }
+  .lt-item:hover .lt-nome { color: var(--done); }
+  .lt-hora { font-size: 14px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+  .lt-ponto { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--line); background: var(--surface); justify-self: center; position: relative; }
+  .lt-item.feito .lt-ponto { background: var(--done); border-color: var(--done); }
+  .lt-item.minimo .lt-ponto { background: var(--done-soft); border-color: var(--done); }
+  .lt-item.atrasado .lt-ponto { border-color: var(--today); }
+  .lt-item.proximo .lt-ponto { border-color: var(--fg); box-shadow: 0 0 0 3px var(--line); }
+  .lt-nome { font-weight: 600; overflow-wrap: anywhere; min-width: 0; }
+  .lt-item.feito .lt-nome { color: var(--muted); }
+  .lt-chip { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
+  .lt-item.feito .lt-chip, .lt-item.minimo .lt-chip { background: var(--done-soft); color: var(--done); }
+  .lt-item.atrasado .lt-chip { background: var(--today-soft); color: var(--today); }
+  .lt-item.proximo .lt-chip { background: var(--fg); color: var(--bg); }
+  .lt-agora { display: grid; grid-template-columns: 52px 24px minmax(0, 1fr); align-items: center; gap: 0 10px; padding: 2px 0; }
+  .lt-agora span { font-size: 12px; font-weight: 700; color: var(--today); text-align: right; font-variant-numeric: tabular-nums; }
+  .lt-agora i { width: 10px; height: 10px; border-radius: 50%; background: var(--today); justify-self: center; position: relative; z-index: 1; }
+  .lt-agora b { height: 2px; background: var(--today); }
+  .lt-dica { font-size: 14px; color: var(--muted); margin: 0; }
+  input[type=time] { width: 100%; box-sizing: border-box; min-width: 0; font: inherit; padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--line); background: var(--surface); color: var(--fg); }
+
+  /* Lista de hábitos */
+  .lista { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+  .habito {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 20px; align-items: start;
+    padding: 16px; border-top: 1px solid var(--line);
+  }
+  .habito:first-child { border-top: 0; }
+  .info { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+  .nome { font-weight: 600; font-size: 17px; overflow-wrap: anywhere; }
+  .plano { font-size: 14px; color: var(--muted); overflow-wrap: anywhere; }
+  .plano b { color: var(--fg); font-weight: 600; }
+  .numeros { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .numeros .ativa { color: var(--done); font-weight: 600; }
+  .alerta { font-size: 13px; color: var(--today); font-weight: 600; }
+
+  .dias { display: grid; grid-template-columns: repeat(7, 38px); gap: 6px; }
+  .dia {
+    width: 38px; height: 46px; border-radius: 8px;
+    border: 1.5px solid var(--line); background: transparent; color: var(--muted);
+    font: inherit; font-size: 11px; line-height: 1.1; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-variant-numeric: tabular-nums; transition: background .15s, border-color .15s, color .15s;
+  }
+  .dia b { font-size: 14px; font-weight: 600; color: var(--fg); }
+  .dia:not(.passado):hover { border-color: var(--done); }
+  .dia.passado { cursor: default; }
+  .dia.hoje { border-color: var(--today); }
+  .dia.feito { background: var(--done); border-color: var(--done); color: var(--done-fg); }
+  .dia.feito b { color: var(--done-fg); }
+  .dia.minimo { background: var(--done-soft); border-color: var(--done); color: var(--done); }
+  .dia.minimo b { color: var(--done); }
+
+  .rumo { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .rumo .barra { flex: 1; height: 6px; }
+  .acoes { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 4px; margin-top: -6px; }
+  .link {
+    background: none; border: 0; color: var(--muted); font: inherit; font-size: 13px; cursor: pointer; padding: 2px 6px;
+  }
+  .link:hover { color: var(--fg); }
+  .link.perigo:hover, .link.confirmar { color: var(--danger); }
+
+  .editar { grid-column: 1 / -1; display: grid; gap: 8px; }
+  .vazio { padding: 28px 16px; text-align: center; color: var(--muted); }
+
+  /* Formulários */
+  .novo { display: flex; flex-direction: column; gap: 12px; }
+  .campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+  .campo { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .campo label { font-size: 13px; font-weight: 600; }
+  .campo small { font-size: 12px; color: var(--muted); }
+  input[type=text] {
+    width: 100%; box-sizing: border-box; min-width: 0;
+    font: inherit; padding: 10px 12px; border-radius: 10px;
+    border: 1.5px solid var(--line); background: var(--surface); color: var(--fg);
+  }
+  .btn {
+    font: inherit; font-weight: 600; padding: 10px 18px; border-radius: 10px; cursor: pointer;
+    border: 0; background: var(--fg); color: var(--bg);
+  }
+  .btn.leve { background: transparent; color: var(--fg); border: 1.5px solid var(--line); padding: 6px 12px; font-size: 14px; }
+  .dia:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid var(--today); outline-offset: 2px; }
+
+  .legenda { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; color: var(--muted); }
+  .legenda span { display: inline-flex; align-items: center; gap: 6px; }
+  .legenda i { width: 12px; height: 12px; border-radius: 3px; border: 1.5px solid var(--line); display: inline-block; }
+  .legenda i.f { background: var(--done); border-color: var(--done); }
+  .legenda i.m { background: var(--done-soft); border-color: var(--done); }
+  .legenda i.h { border-color: var(--today); }
+
+  /* Por que funciona */
+  details { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 4px 18px; }
+  summary { cursor: pointer; padding: 12px 0; font-family: var(--display); font-weight: 600; font-size: 18px; }
+  .ciencia { list-style: none; padding: 0 0 12px; margin: 0; display: flex; flex-direction: column; gap: 14px; }
+  .ciencia li { max-width: 65ch; }
+  .ciencia strong { display: block; }
+  .ciencia p { margin: 2px 0 0; color: var(--muted); font-size: 15px; }
+  .ciencia a { color: var(--done); }
+
+  .toast {
+    position: fixed; left: 50%; transform: translateX(-50%);
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    max-width: calc(100% - 32px); box-sizing: border-box;
+    background: var(--fg); color: var(--bg); padding: 12px 18px; border-radius: 12px;
+    font-weight: 600; font-size: 15px; box-shadow: 0 8px 24px rgba(0,0,0,.2); z-index: 20;
+  }
+
+  @media (max-width: 600px) {
+    .habito { grid-template-columns: minmax(0, 1fr); }
+    .dias { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+    .dia { width: 100%; }
+    .campos { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <nav id="nav-app"></nav>
+
+  <header>
+    <span class="rotulo" id="data-hoje"></span>
+    <h1>Hábito a Hábito</h1>
+    <p class="resumo" id="resumo"></p>
+    <div class="barra" aria-hidden="true"><span id="progresso"></span></div>
+  </header>
+
+  <!-- Ofensiva: emblema que evolui com os dias seguidos -->
+  <section class="ofensiva" aria-label="Ofensiva">
+    <canvas id="emblema" width="160" height="160" role="img" aria-label="Emblema da ofensiva"></canvas>
+    <div class="of-info">
+      <span class="rotulo" id="of-rotulo">Ofensiva</span>
+      <div class="of-numero"><b id="of-dias">0</b> <span id="of-unidade">dias</span></div>
+      <span class="of-nivel" id="of-nivel">Faísca</span>
+      <p class="of-estado" id="of-estado"></p>
+      <div class="of-proximo">
+        <div class="barra" aria-hidden="true"><span id="of-barra"></span></div>
+        <span id="of-proximo"></span>
+      </div>
+    </div>
+    <a class="of-link" href="conquistas.html"><span>Trilha até 500 dias, recorde e desafios do mês</span><span aria-hidden="true">→</span></a>
+  </section>
+
+  <div class="faixa recomeco" id="recomeco" hidden></div>
+
+  <div class="faixa exemplo" id="aviso" hidden>
+    <p>Estes hábitos são exemplos, com um mês de histórico inventado, para você ver como tudo funciona.</p>
+    <button class="btn leve" id="limpar" type="button">Começar do zero</button>
+  </div>
+
+  <!-- Linha do tempo do dia -->
+  <section class="linha-tempo" aria-label="Seu dia">
+    <div class="lt-cab"><h2>Seu dia</h2><span id="lt-resumo"></span></div>
+    <ol class="lt-lista" id="lt-lista"></ol>
+  </section>
+
+  <div class="lista" id="lista"></div>
+
+  <form class="novo" id="form-novo">
+    <h2>Novo hábito</h2>
+    <div class="campos">
+      <div class="campo">
+        <label for="novo-nome">O quê</label>
+        <input type="text" id="novo-nome" placeholder="Ler" maxlength="60" autocomplete="off">
+      </div>
+      <div class="campo">
+        <label for="novo-quando">Quando (gatilho)</label>
+        <input type="text" id="novo-quando" placeholder="depois do almoço" maxlength="60" autocomplete="off">
+        <small>Ligue a algo que você já faz.</small>
+      </div>
+      <div class="campo">
+        <label for="novo-minimo">Versão mínima</label>
+        <input type="text" id="novo-minimo" placeholder="1 página" maxlength="60" autocomplete="off">
+        <small>Para os dias difíceis.</small>
+      </div>
+      <div class="campo">
+        <label for="novo-hora">Horário</label>
+        <input type="time" id="novo-hora">
+        <small>Aparece em "Seu dia".</small>
+      </div>
+    </div>
+    <div><button class="btn" type="submit">Adicionar hábito</button></div>
+  </form>
+
+  <div class="legenda">
+    <span><i class="f"></i> feito</span>
+    <span><i class="m"></i> versão mínima</span>
+    <span><i class="h"></i> hoje</span>
+    <span>Toque em hoje: feito → mínimo → vazio. Dias passados ficam registrados.</span>
+  </div>
+
+  <details>
+    <summary>Por que funciona</summary>
+    <ul class="ciencia">
+      <li><strong>Plano "quando… eu vou…"</strong>
+        <p>Decidir antes o momento e o lugar de agir (as "intenções de implementação") aumentou de forma média a grande a chance de cumprir metas, numa análise de quase cem estudos. <a href="https://www.socmot.uni-konstanz.de/sites/default/files/gollwitzer_oettingen_2013-Implementation_Intentions.pdf" target="_blank" rel="noopener">Gollwitzer e Oettingen</a></p></li>
+      <li><strong>Rumo aos 66 dias</strong>
+        <p>No estudo de Lally, as pessoas levaram em média uns 66 dias para um hábito ficar automático, mas variou de 18 a 254. Por isso a barra mostra um rumo, não um prazo. <a href="https://www.scientificamerican.com/article/how-long-does-it-really-take-to-form-a-habit/" target="_blank" rel="noopener">Scientific American</a></p></li>
+      <li><strong>Nunca falhar duas vezes</strong>
+        <p>Perder um dia é normal e não apaga o progresso. Aqui, a sequência só quebra com dois dias seguidos sem marcar, e o app avisa quando você está nesse limite. Sequências rígidas tendem a fazer as pessoas desistirem depois de uma falha. <a href="https://uxdesign.cc/3-reframing-streaks-on-duolingo-5-ideas-for-a-more-healthy-and-flexible-approach-to-language-8fd89545771e" target="_blank" rel="noopener">UX Collective</a></p></li>
+      <li><strong>Versão mínima</strong>
+        <p>Nos dias ruins, fazer o mínimo mantém a identidade e a constância vivas. É a ideia da "regra dos dois minutos": começar tão pequeno que não dá para dizer não. <a href="https://ascd.org/el/articles/two-minutes-to-better-habits" target="_blank" rel="noopener">ASCD</a></p></li>
+      <li><strong>Recomeços na segunda e no dia 1</strong>
+        <p>Marcos no calendário, como o começo da semana ou do mês, aumentam a motivação para metas (o "efeito recomeço"). O app aproveita esses dias para te lembrar disso. <a href="https://knowledge.wharton.upenn.edu/article/need-fresh-start-heres-begin/" target="_blank" rel="noopener">Wharton</a></p></li>
+      <li><strong>Perdoar a falha</strong>
+        <p>Estudantes que se perdoaram por procrastinar antes de uma prova procrastinaram menos na prova seguinte. Por isso o app não te dá bronca quando a sequência quebra. <a href="https://bps.org.uk/research-digest/cure-procrastination-forgive-yourself" target="_blank" rel="noopener">BPS Research Digest</a></p></li>
+      <li><strong>Blocos de foco com pausa</strong>
+        <p>A atenção cai depois de um tempo numa mesma tarefa, e um timer externo ajuda a fazer pausas na hora certa. A evidência para o método Pomodoro é indireta, então teste o tamanho de bloco que funciona para você. <a href="https://www.browndailyherald.com/article/2026/03/fact-check-is-the-pomodoro-technique-actually-effective-for-studying" target="_blank" rel="noopener">Brown Daily Herald</a></p></li>
+    </ul>
+  </details>
+</div>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="comum.js"></script>
+<script src="chama.js"></script>
+<script>
+  // ===== 1. Constantes (datas, salvar e navegação vêm de comum.js) =====
+  montarNav("index.html");
+  const META_AUTOMATICO = 66;          // média do estudo de Lally (varia de 18 a 254)
+  const MARCOS = [7, 21, 30, 66, 100]; // dias totais que ganham comemoração
+
+  // ===== 2. Dados =====
+  // Cada hábito: { id, nome, quando, minimo, hora, feitos }
+  // "feitos" guarda cada dia como "feito" (completo) ou "min" (versão mínima).
+  const CHAVE_SALVAR = CHAVES.habitos;
+  const CHAVE_ANTIGA = "habito-a-habito-v1";
+
+  function dadosDeExemplo() {
+    // Um mês de histórico inventado, com falhas, para mostrar as mecânicas.
+    const historico = (padrao) => {
+      const feitos = {};
+      padrao.split("").forEach((c, n) => {
+        if (c === "x") feitos[chaveDoDia(diasAtras(n))] = "feito";
+        if (c === "m") feitos[chaveDoDia(diasAtras(n))] = "min";
+      });
+      return feitos;
+    };
+    // Cada letra é um dia, começando por hoje: x = feito, m = mínimo, . = não fez
+    return {
+      exemplo: true,
+      focos: {},
+      habitos: [
+        { id: 1, nome: "Beber 2 litros de água", quando: "ao acordar, encher a garrafa", minimo: "1 copo", hora: "07:00",
+          feitos: historico("xxxmx.xxxxxx.xxxxmxxx.xxxxx") },
+        { id: 2, nome: "Estudar programação", quando: "depois do jantar", minimo: "ler 1 exemplo de código", hora: "19:30",
+          feitos: historico(".xmx.xxx..xxmxx.x") },
+        { id: 3, nome: "Caminhar 20 minutos", quando: "depois do almoço", minimo: "5 minutos", hora: "13:00",
+          feitos: historico("..x.x..x") }
+      ]
+    };
+  }
+
+  function lerArmazenado(chave) {
+    try { const t = localStorage.getItem(chave); return t ? JSON.parse(t) : null; }
+    catch (e) { return null; }
+  }
+
+  function carregar() {
+    const atual = lerArmazenado(CHAVE_SALVAR);
+    if (atual) return atual;
+    // Traz os hábitos da versão anterior do app, se existirem
+    const antigo = lerArmazenado(CHAVE_ANTIGA);
+    if (antigo && !antigo.exemplo) {
+      return {
+        exemplo: false, focos: {},
+        habitos: antigo.habitos.map(h => ({
+          id: h.id, nome: h.nome, quando: "", minimo: "",
+          feitos: Object.fromEntries(Object.keys(h.feitos).map(k => [k, "feito"]))
+        }))
+      };
+    }
+    return dadosDeExemplo();
+  }
+  function salvar() {
+    try { localStorage.setItem(CHAVE_SALVAR, JSON.stringify(estado)); } catch (e) {}
+  }
+
+  let estado = carregar();
+  if (!estado.focos) estado.focos = {};
+
+  // ===== 3. Números de cada hábito =====
+  // Regra "nunca falhe duas vezes": um dia sem marcar não quebra a sequência,
+  // dois dias seguidos sem marcar quebram. Hoje só conta como falha amanhã.
+  function analisar(h) {
+    const fez = (n) => !!h.feitos[chaveDoDia(diasAtras(n))];
+
+    // Sequência atual
+    let n = fez(0) ? 0 : 1;
+    let sequencia = 0, faltasSeguidas = 0;
+    while (n < 1000) {
+      if (fez(n)) { sequencia++; faltasSeguidas = 0; }
+      else { faltasSeguidas++; if (faltasSeguidas >= 2) break; }
+      n++;
+    }
+
+    // Em risco: ontem não fez e hoje ainda não fez (falhar hoje quebraria)
+    const emRisco = sequencia > 0 && !fez(0) && !fez(1);
+
+    // Maior sequência de todos os tempos, com a mesma regra
+    const datas = Object.keys(h.feitos).sort();
+    let maior = 0;
+    if (datas.length) {
+      const inicio = new Date(datas[0] + "T12:00:00");
+      const totalDias = Math.round((diasAtras(0) - inicio) / 86400000);
+      let atual = 0, faltas = 0;
+      for (let i = totalDias; i >= 0; i--) {
+        if (fez(i)) { atual++; faltas = 0; maior = Math.max(maior, atual); }
+        else { faltas++; if (faltas >= 2) atual = 0; }
+      }
+    }
+
+    // Constância: dias feitos nos últimos 30
+    let ultimos30 = 0;
+    for (let i = 0; i < 30; i++) if (fez(i)) ultimos30++;
+
+    return { sequencia, emRisco, maior, total: datas.length, constancia: Math.round(ultimos30 / 30 * 100) };
+  }
+
+  // ===== 4. Desenhar a tela =====
+  const lista = document.getElementById("lista");
+  let editandoId = null;
+
+  function desenhar() {
+    const hoje = chaveDoDia(diasAtras(0));
+    lista.innerHTML = "";
+
+    if (estado.habitos.length === 0) {
+      lista.innerHTML = '<div class="vazio">Nenhum hábito ainda. Crie o primeiro no formulário abaixo, com um gatilho e uma versão mínima.</div>';
+    }
+
+    for (const h of estado.habitos) {
+      const dados = analisar(h);
+      const linha = document.createElement("div");
+      linha.className = "habito";
+
+      // --- Informações ---
+      const info = document.createElement("div");
+      info.className = "info";
+      info.appendChild(criar("span", "nome", h.nome));
+
+      if (h.quando || h.minimo || h.hora) {
+        const plano = document.createElement("span");
+        plano.className = "plano";
+        if (h.hora) { plano.append("Às "); plano.appendChild(criar("b", "", h.hora)); if (h.quando || h.minimo) plano.append(" · "); }
+        if (h.quando) { plano.append("Quando "); plano.appendChild(criar("b", "", h.quando)); }
+        if (h.quando && h.minimo) plano.append(" · ");
+        if (h.minimo) { plano.append("Mínimo: "); plano.appendChild(criar("b", "", h.minimo)); }
+        info.appendChild(plano);
+      }
+
+      const numeros = document.createElement("div");
+      numeros.className = "numeros";
+      numeros.appendChild(criar("span", dados.sequencia > 0 ? "ativa" : "",
+        dados.sequencia === 0 ? "Sem sequência ainda" : "Sequência: " + dados.sequencia + (dados.sequencia === 1 ? " dia" : " dias")));
+      numeros.appendChild(criar("span", "", "Melhor: " + dados.maior));
+      numeros.appendChild(criar("span", "", "30 dias: " + dados.constancia + "%"));
+      numeros.firstChild.prepend(miniEmblema(dados.sequencia));
+      info.appendChild(numeros);
+
+      if (dados.emRisco) {
+        info.appendChild(criar("span", "alerta",
+          "Ontem ficou para trás. Hoje é o dia de não falhar duas vezes" + (h.minimo ? " (vale o mínimo)." : ".")));
+      }
+
+      // --- Os 7 últimos dias ---
+      const dias = document.createElement("div");
+      dias.className = "dias";
+      for (let n = 6; n >= 0; n--) {
+        const data = diasAtras(n);
+        const chave = chaveDoDia(data);
+        const valor = h.feitos[chave];
+        const botao = document.createElement("button");
+        botao.type = "button";
+        botao.className = "dia" + (valor === "feito" ? " feito" : "") + (valor === "min" ? " minimo" : "") + (chave === hoje ? " hoje" : "");
+        botao.innerHTML = NOMES_DIAS[data.getDay()] + "<b>" + data.getDate() + "</b>";
+        const estadoTexto = valor === "feito" ? "feito" : valor === "min" ? "versão mínima" : "não feito";
+        botao.setAttribute("aria-label", h.nome + ", " + data.toLocaleDateString("pt-BR") + ": " + estadoTexto);
+        if (chave === hoje) {
+          botao.addEventListener("click", () => alternarDia(h.id, chave));
+        } else {
+          // Dias passados ficam registrados: não dá para mudar a ofensiva depois
+          botao.classList.add("passado");
+          botao.setAttribute("aria-disabled", "true");
+          botao.tabIndex = -1;
+          botao.title = "Dia registrado. Só o dia de hoje pode ser marcado.";
+        }
+        dias.appendChild(botao);
+      }
+
+      // --- Rumo ao automático ---
+      const rumo = document.createElement("div");
+      rumo.className = "rumo";
+      const barra = document.createElement("div");
+      barra.className = "barra";
+      const preenchido = document.createElement("span");
+      preenchido.style.width = Math.min(100, dados.total / META_AUTOMATICO * 100) + "%";
+      barra.appendChild(preenchido);
+      rumo.append(criar("span", "", "Rumo ao automático"), barra,
+        criar("span", "", dados.total >= META_AUTOMATICO ? dados.total + " dias, já no automático para muita gente" : dados.total + "/" + META_AUTOMATICO + " dias"));
+
+      linha.append(info, dias, rumo);
+
+      // --- Edição ou ações ---
+      if (editandoId === h.id) {
+        linha.appendChild(formularioEdicao(h));
+      } else {
+        const acoes = document.createElement("div");
+        acoes.className = "acoes";
+        const editar = criar("button", "link", "Editar plano");
+        editar.type = "button";
+        editar.addEventListener("click", () => { editandoId = h.id; desenhar(); });
+        const remover = criar("button", "link perigo", "Remover");
+        remover.type = "button";
+        remover.addEventListener("click", () => {
+          if (remover.classList.contains("confirmar")) return removerHabito(h.id);
+          remover.classList.add("confirmar");
+          remover.textContent = "Toque de novo para remover";
+          setTimeout(() => { remover.classList.remove("confirmar"); remover.textContent = "Remover"; }, 3000);
+        });
+        acoes.append(editar, remover);
+        linha.appendChild(acoes);
+      }
+
+      lista.appendChild(linha);
+    }
+
+    atualizarResumo();
+    desenharLinhaTempo();
+    document.getElementById("aviso").hidden = !estado.exemplo;
+    desenharOfensiva();
+  }
+
+  function criar(tag, classe, texto) {
+    const el = document.createElement(tag);
+    if (classe) el.className = classe;
+    el.textContent = texto;
+    return el;
+  }
+
+  function formularioEdicao(h) {
+    const caixa = document.createElement("form");
+    caixa.className = "editar";
+    caixa.innerHTML =
+      '<div class="campos">' +
+      '<div class="campo"><label for="ed-nome-' + h.id + '">O quê</label><input type="text" id="ed-nome-' + h.id + '" maxlength="60"></div>' +
+      '<div class="campo"><label for="ed-quando-' + h.id + '">Quando (gatilho)</label><input type="text" id="ed-quando-' + h.id + '" maxlength="60"></div>' +
+      '<div class="campo"><label for="ed-minimo-' + h.id + '">Versão mínima</label><input type="text" id="ed-minimo-' + h.id + '" maxlength="60"></div>' +
+      '<div class="campo"><label for="ed-hora-' + h.id + '">Horário</label><input type="time" id="ed-hora-' + h.id + '"></div>' +
+      '</div><div class="linha"><button class="btn" type="submit">Salvar</button><button class="btn leve" type="button">Cancelar</button></div>';
+    caixa.querySelector("#ed-nome-" + h.id).value = h.nome;
+    caixa.querySelector("#ed-quando-" + h.id).value = h.quando || "";
+    caixa.querySelector("#ed-minimo-" + h.id).value = h.minimo || "";
+    caixa.querySelector("#ed-hora-" + h.id).value = h.hora || "";
+    caixa.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const nome = caixa.querySelector("#ed-nome-" + h.id).value.trim();
+      if (!nome) return;
+      h.nome = nome;
+      h.quando = caixa.querySelector("#ed-quando-" + h.id).value.trim();
+      h.minimo = caixa.querySelector("#ed-minimo-" + h.id).value.trim();
+      h.hora = caixa.querySelector("#ed-hora-" + h.id).value;
+      editandoId = null; salvar(); desenhar();
+    });
+    caixa.querySelector(".btn.leve").addEventListener("click", () => { editandoId = null; desenhar(); });
+    return caixa;
+  }
+
+  function atualizarResumo() {
+    const hoje = chaveDoDia(diasAtras(0));
+    const total = estado.habitos.length;
+    const feitos = estado.habitos.filter(h => h.feitos[hoje]).length;
+    const resumo = document.getElementById("resumo");
+    if (total === 0) resumo.textContent = "Adicione um hábito para começar.";
+    else if (feitos === total) resumo.innerHTML = "<strong>Todos os " + total + " hábitos feitos hoje.</strong> Bom trabalho!";
+    else resumo.innerHTML = "<strong>" + feitos + " de " + total + "</strong> hábitos feitos hoje.";
+    document.getElementById("progresso").style.width = total ? (feitos / total * 100) + "%" : "0";
+  }
+
+  // ===== 5. Ações nos hábitos =====
+  function alternarDia(id, chave) {
+    if (chave !== chaveDoDia(diasAtras(0))) return; // só hoje pode mudar
+    const h = estado.habitos.find(x => x.id === id);
+    const antes = analisar(h).total;
+    // Ciclo: vazio → feito → mínimo → vazio (sem versão mínima: vazio ↔ feito)
+    const atual = h.feitos[chave];
+    if (!atual) h.feitos[chave] = "feito";
+    else if (atual === "feito" && h.minimo) h.feitos[chave] = "min";
+    else delete h.feitos[chave];
+
+    const depois = analisar(h).total;
+    if (depois > antes && MARCOS.includes(depois)) {
+      avisar(depois + " dias de “" + h.nome + "”. Isso é constância!");
+    }
+    salvar(); desenhar();
+  }
+
+  function marcarHoje(id) {
+    const h = estado.habitos.find(x => x.id === id);
+    if (!h) return;
+    const chave = chaveDoDia(diasAtras(0));
+    if (h.feitos[chave] !== "feito") {
+      const antes = analisar(h).total;
+      h.feitos[chave] = "feito";
+      const depois = analisar(h).total;
+      avisar(depois > antes && MARCOS.includes(depois)
+        ? depois + " dias de “" + h.nome + "”. Isso é constância!"
+        : "“" + h.nome + "” marcado como feito hoje.");
+      salvar(); desenhar();
+    }
+  }
+
+  function removerHabito(id) {
+    estado.habitos = estado.habitos.filter(h => h.id !== id);
+    salvar(); desenhar();
+  }
+
+  document.getElementById("form-novo").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const nome = document.getElementById("novo-nome").value.trim();
+    if (!nome) { document.getElementById("novo-nome").focus(); return; }
+    estado.habitos.push({
+      id: Date.now(), nome,
+      quando: document.getElementById("novo-quando").value.trim(),
+      minimo: document.getElementById("novo-minimo").value.trim(),
+      hora: document.getElementById("novo-hora").value,
+      feitos: {}
+    });
+    ["novo-nome", "novo-quando", "novo-minimo", "novo-hora"].forEach(id => document.getElementById(id).value = "");
+    salvar(); desenhar();
+  });
+
+  document.getElementById("limpar").addEventListener("click", () => {
+    estado = { exemplo: false, focos: {}, habitos: [], conquistas: {}, recorde: { dias: 0, data: null } };
+    of.nivelAnterior = null;
+    salvar(); desenhar();
+    document.getElementById("novo-nome").focus();
+  });
+
+  // ===== 6. Recomeço (segunda-feira e dia 1) =====
+  function mostrarRecomeco() {
+    const hoje = new Date();
+    let texto = "";
+    if (hoje.getDate() === 1) texto = "Primeiro dia do mês: um bom marco para recomeçar ou testar um hábito novo.";
+    else if (hoje.getDay() === 1) texto = "Segunda-feira: começo de semana é um bom momento para retomar o que ficou para trás.";
+    const faixa = document.getElementById("recomeco");
+    if (texto) { faixa.innerHTML = "<p></p>"; faixa.firstChild.textContent = texto; faixa.hidden = false; }
+  }
+
+  // ===== 7. Linha do tempo do dia =====
+  function desenharLinhaTempo() {
+    const ul = document.getElementById("lt-lista");
+    const hoje = hojeChave();
+    ul.innerHTML = "";
+    const blocos = estado.focos[hoje] || 0;
+    document.getElementById("lt-resumo").textContent = blocos + (blocos === 1 ? " bloco de foco hoje" : " blocos de foco hoje");
+
+    const comHora = estado.habitos.filter(h => h.hora).sort((a, b) => a.hora.localeCompare(b.hora));
+    if (comHora.length === 0) {
+      ul.innerHTML = '<li><p class="lt-dica">Dê um horário aos seus hábitos (em "Editar plano") para montar a linha do tempo do seu dia.</p></li>';
+      return;
+    }
+    const agora = new Date();
+    const agoraTexto = String(agora.getHours()).padStart(2, "0") + ":" + String(agora.getMinutes()).padStart(2, "0");
+    let marcouAgora = false, marcouProximo = false;
+
+    const linhaAgora = () => {
+      const li = document.createElement("li");
+      li.className = "lt-agora"; li.setAttribute("aria-label", "Agora, " + agoraTexto);
+      li.innerHTML = "<span>" + agoraTexto + "</span><i></i><b></b>";
+      return li;
+    };
+
+    for (const h of comHora) {
+      if (!marcouAgora && h.hora > agoraTexto) { ul.appendChild(linhaAgora()); marcouAgora = true; }
+      const valor = h.feitos[hoje];
+      let classe = "", chip = "";
+      if (valor === "feito") { classe = "feito"; chip = "Feito"; }
+      else if (valor === "min") { classe = "minimo"; chip = "Mínimo"; }
+      else if (h.hora <= agoraTexto) { classe = "atrasado"; chip = "Pendente"; }
+      else if (!marcouProximo) { classe = "proximo"; chip = "A seguir"; marcouProximo = true; }
+
+      const li = document.createElement("li");
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "lt-item " + classe;
+      b.setAttribute("aria-label", h.hora + ", " + h.nome + (chip ? ", " + chip : "") + ". Toque para marcar.");
+      b.append(criar("span", "lt-hora", h.hora), criar("span", "lt-ponto", ""), criar("span", "lt-nome", h.nome));
+      if (chip) b.appendChild(criar("span", "lt-chip", chip));
+      b.addEventListener("click", () => alternarDia(h.id, hoje));
+      li.appendChild(b); ul.appendChild(li);
+    }
+    if (!marcouAgora) ul.appendChild(linhaAgora());
+  }
+  setInterval(() => desenharLinhaTempo(), 60000);
+
+  // ===== 8. Ofensiva (o desenho está em chama.js) =====
+  const emblemaCtx = prepararCanvas(document.getElementById("emblema"), 160);
+  const of = { nivel: 0, apagada: false, estouroAte: 0, nivelAnterior: null };
+
+  function desenharOfensiva() {
+    const { dias, acesaHoje } = ofensivaDe(estado);
+    if (registrarConquistas(estado)) salvar();   // grava níveis e recorde
+    const nivel = nivelDe(dias);
+    if (of.nivelAnterior !== null && nivel > of.nivelAnterior) {
+      avisar("Sua ofensiva evoluiu: " + NIVEIS[nivel].nome + "!");
+      of.estouroAte = performance.now() + 1500;
+    }
+    of.nivelAnterior = nivel; of.nivel = nivel; of.apagada = !acesaHoje && dias > 0;
+
+    document.getElementById("of-dias").textContent = dias;
+    document.getElementById("of-unidade").textContent = dias === 1 ? "dia" : "dias";
+    document.getElementById("of-nivel").textContent = NIVEIS[nivel].nome;
+    document.querySelector(".ofensiva").style.setProperty("--nivel-fg", nivel === 0 ? "var(--muted)" : (NIVEIS[nivel].ext || ["", "#c86bff"])[1]);
+    const est = document.getElementById("of-estado");
+    est.className = "of-estado" + (of.apagada || dias === 0 ? " apagada" : "");
+    est.textContent = dias === 0 ? "Marque um hábito hoje para acender a primeira faísca."
+      : of.apagada ? "Marque um hábito hoje para manter a chama acesa." : "Chama acesa hoje.";
+
+    const prox = NIVEIS[nivel + 1];
+    const barra = document.getElementById("of-barra");
+    if (prox) {
+      const falta = prox.min - dias;
+      document.getElementById("of-proximo").textContent = "Faltam " + falta + (falta === 1 ? " dia" : " dias") + " para " + prox.nome;
+      barra.style.width = ((dias - NIVEIS[nivel].min) / (prox.min - NIVEIS[nivel].min) * 100) + "%";
+    } else {
+      document.getElementById("of-proximo").textContent = "Nível máximo. 500 dias de chama acesa.";
+      barra.style.width = "100%";
+    }
+    if (movimentoReduzido) quadro(performance.now());
+  }
+
+  function quadro(agora) {
+    const estouro = Math.max(0, (of.estouroAte - agora) / 1500);
+    desenharEmblema(emblemaCtx, 160, of.nivel, movimentoReduzido ? 0.4 : agora / 1000, { apagada: of.apagada, estouro });
+  }
+  function animar(agora) { if (!document.hidden) quadro(agora); requestAnimationFrame(animar); }
+  if (!movimentoReduzido) requestAnimationFrame(animar);
+
+  // ===== 9. Começar =====
+  document.getElementById("data-hoje").textContent =
+    new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
+  mostrarRecomeco();
+  desenhar();
+</script>
+
+</body></html>
